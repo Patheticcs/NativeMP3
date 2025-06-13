@@ -1,0 +1,9 @@
+{
+  "name": "Offline MP3 Player",
+  "short_name": "MP3 Player",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f4f4f4",
+  "theme_color": "#ffffff",
+  "icons": []
+}
