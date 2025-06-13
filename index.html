@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Offline MP3 Player</title>
+  <link rel="manifest" href="manifest.json" />
+  <link id="favicon" rel="icon" href="">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f4f4f4;
+    }
+    .player {
+      background: #fff;
+      border-radius: 8px;
+      padding: 20px;
+      max-width: 500px;
+      margin: auto;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .cover {
+      width: 100%;
+      height: auto;
+      border-radius: 8px;
+    }
+    .title {
+      font-size: 18px;
+      margin: 10px 0;
+    }
+    audio {
+      width: 100%;
+      margin-top: 10px;
+    }
+    input[type="file"], input[type="text"], button {
+      width: 100%;
+      margin: 8px 0;
+    }
+    .playlist {
+      margin-top: 20px;
+    }
+    .track {
+      padding: 8px;
+      cursor: pointer;
+      border-bottom: 1px solid #ccc;
+    }
+    .track:hover {
+      background: #eee;
+    }
+  </style>
+</head>
+<body>
+  <div class="player">
+    <img id="coverImg" class="cover" src="" alt="Cover Image" style="display: none;" />
+    <div class="title" id="audioTitle">No audio loaded</div>
+    <input type="file" id="audioInput" accept=".mp3" />
+    <input type="file" id="imageInput" accept="image/*" />
+    <input type="text" id="titleInput" placeholder="Enter title" />
+    <button onclick="addToPlaylist()">Add to Playlist</button>
+    <audio id="audioPlayer" controls></audio>
+    <div class="playlist" id="playlist"></div>
+  </div>
+
+  <script>
+    const audioInput = document.getElementById('audioInput');
+    const imageInput = document.getElementById('imageInput');
+    const titleInput = document.getElementById('titleInput');
+    const audioPlayer = document.getElementById('audioPlayer');
+    const coverImg = document.getElementById('coverImg');
+    const audioTitle = document.getElementById('audioTitle');
+    const playlistDiv = document.getElementById('playlist');
+    const favicon = document.getElementById('favicon');
+
+    let playlist = JSON.parse(localStorage.getItem('playlist')) || [];
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+
+    function renderPlaylist() {
+      playlistDiv.innerHTML = '';
+      playlist.forEach((track, index) => {
+        const div = document.createElement('div');
+        div.className = 'track';
+        div.textContent = track.title;
+        div.onclick = () => playTrack(index);
+        playlistDiv.appendChild(div);
+      });
+    }
+
+    function playTrack(index) {
+      const track = playlist[index];
+      if (!track) return;
+
+      audioPlayer.src = track.audio;
+      audioTitle.textContent = track.title;
+      document.title = track.title;
+
+      if (track.image) {
+        coverImg.src = track.image;
+        coverImg.style.display = 'block';
+        favicon.href = track.image;
+      } else {
+        coverImg.style.display = 'none';
+        favicon.href = '';
+      }
+
+      audioPlayer.play();
+    }
+
+    function addToPlaylist() {
+      const audioFile = audioInput.files[0];
+      const imageFile = imageInput.files[0];
+      const title = titleInput.value || 'Untitled';
+
+      if (!audioFile || !audioFile.name.endsWith('.mp3')) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const audioData = e.target.result;
+
+        if (imageFile) {
+          const imgReader = new FileReader();
+          imgReader.onload = function(e2) {
+            const imageData = e2.target.result;
+            saveTrack({ title, audio: audioData, image: imageData });
+          };
+          imgReader.readAsDataURL(imageFile);
+        } else {
+          saveTrack({ title, audio: audioData });
+        }
+      };
+      reader.readAsDataURL(audioFile);
+    }
+
+    function saveTrack(track) {
+      playlist.push(track);
+      localStorage.setItem('playlist', JSON.stringify(playlist));
+      renderPlaylist();
+    }
+
+    window.onload = () => {
+      renderPlaylist();
+      if (playlist.length > 0) playTrack(0);
+    };
+  </script>
+</body>
+</html>
