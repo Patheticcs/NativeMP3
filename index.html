@@ -4,6 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Offline MP3 Player</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/favicon.ico">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+    }
+  </script>
   <style>
     body {
       margin: 0;
@@ -68,6 +76,8 @@
     <input type="text" id="newPlaylistName" placeholder="New Playlist Name">
     <input type="file" id="newPlaylistImage" accept="image/*">
     <button onclick="createPlaylist()">Create Playlist</button>
+
+    <button onclick="saveOffline()">💾 Save App for Offline Use</button>
 
     <div id="playlists"></div>
 
@@ -209,6 +219,26 @@
     audio.addEventListener('ended', () => {
       next()
     })
+
+    function saveOffline() {
+      if ('caches' in window) {
+        caches.open('mp3-offline-v1').then((cache) => {
+          cache.addAll([
+            '/',
+            '/index.html',
+            '/manifest.json',
+            '/sw.js',
+            '/favicon.ico'
+          ]).then(() => {
+            alert('App saved for offline use.')
+          }).catch((err) => {
+            alert('Failed to save: ' + err)
+          })
+        })
+      } else {
+        alert('Caching not supported.')
+      }
+    }
   </script>
 
 </body>
