@@ -2,139 +2,214 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Offline MP3 Player</title>
   <style>
     body {
-      font-family: sans-serif;
       margin: 0;
-      padding: 10px;
-      background: #f4f4f4;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #fff;
+      color: #000;
     }
-    h1 { font-size: 1.2em; }
-    input, button, label {
-      font-size: 1em;
-      margin: 5px 0;
-      display: block;
+    header {
+      padding: 16px;
+      font-weight: 600;
+      font-size: 18px;
+      border-bottom: 1px solid #ddd;
+    }
+    main {
+      padding: 16px;
+    }
+    input, button {
       width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
     }
-    img { max-width: 100px; display: block; margin: 10px 0; }
-    audio { width: 100%; margin-top: 10px; }
-    .song { padding: 5px; border-bottom: 1px solid #ccc; }
-    .controls { margin-top: 10px; }
+    .playlist {
+      margin-top: 24px;
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+    }
+    .playlist img {
+      max-width: 100px;
+      display: block;
+      margin: 8px 0;
+    }
+    .song {
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+    }
+    .controls {
+      display: flex;
+      justify-content: space-around;
+      margin: 12px 0;
+    }
+    .controls button {
+      width: auto;
+      flex: 1;
+      margin: 0 4px;
+    }
+    audio {
+      display: none;
+    }
   </style>
 </head>
 <body>
 
-  <h1>Offline MP3 Playlist</h1>
+  <header>Offline MP3</header>
 
-  <label>Playlist Name:
-    <input type="text" id="playlistName" placeholder="My Playlist" />
-  </label>
+  <main>
+    <input type="text" id="newPlaylistName" placeholder="New Playlist Name">
+    <input type="file" id="newPlaylistImage" accept="image/*">
+    <button onclick="createPlaylist()">Create Playlist</button>
 
-  <label>Playlist Image:
-    <input type="file" id="playlistImageInput" accept="image/*" />
-  </label>
-  <img id="playlistImage" src="" alt="" style="display:none;" />
+    <div id="playlists"></div>
 
-  <label>Add MP3 Files:
-    <input type="file" id="fileInput" accept=".mp3" multiple />
-  </label>
+    <div class="controls">
+      <button onclick="prev()">⏮</button>
+      <button onclick="togglePlay()">⏯</button>
+      <button onclick="next()">⏭</button>
+      <button onclick="shuffle()">🔀</button>
+    </div>
 
-  <div id="songList"></div>
-
-  <div class="controls">
-    <button onclick="prev()">⏮ Prev</button>
-    <button onclick="togglePlay()">⏯ Play/Pause</button>
-    <button onclick="next()">⏭ Next</button>
-    <audio id="audioPlayer" controls></audio>
-  </div>
+    <audio id="audio" controls></audio>
+  </main>
 
   <script>
-    let songs = []
-    let currentIndex = 0
+    let playlists = []
+    let currentPlaylistIndex = -1
+    let currentSongIndex = -1
 
-    const fileInput = document.getElementById('fileInput')
-    const songList = document.getElementById('songList')
-    const audioPlayer = document.getElementById('audioPlayer')
-    const playlistImage = document.getElementById('playlistImage')
-    const playlistImageInput = document.getElementById('playlistImageInput')
-    const playlistName = document.getElementById('playlistName')
+    const audio = document.getElementById('audio')
+    const playlistsDiv = document.getElementById('playlists')
 
-    fileInput.addEventListener('change', (e) => {
-      const files = Array.from(e.target.files)
-      for (const file of files) {
-        const url = URL.createObjectURL(file)
-        songs.push({ file, url, title: file.name })
-      }
-      renderSongs()
-    })
+    function createPlaylist() {
+      const name = document.getElementById('newPlaylistName').value || 'Untitled'
+      const imgInput = document.getElementById('newPlaylistImage')
+      const imgFile = imgInput.files[0]
+      const imageUrl = imgFile ? URL.createObjectURL(imgFile) : null
+      playlists.push({ name, imageUrl, songs: [] })
+      render()
+      imgInput.value = ''
+      document.getElementById('newPlaylistName').value = ''
+    }
 
-    playlistImageInput.addEventListener('change', (e) => {
-      const file = e.target.files[0]
-      if (file) {
-        const url = URL.createObjectURL(file)
-        playlistImage.src = url
-        playlistImage.style.display = 'block'
-      }
-    })
-
-    function renderSongs() {
-      songList.innerHTML = ''
-      songs.forEach((song, i) => {
+    function render() {
+      playlistsDiv.innerHTML = ''
+      playlists.forEach((p, i) => {
         const div = document.createElement('div')
-        div.className = 'song'
-
-        const titleInput = document.createElement('input')
-        titleInput.value = song.title
-        titleInput.oninput = () => song.title = titleInput.value
-
-        const removeBtn = document.createElement('button')
-        removeBtn.textContent = 'Remove'
-        removeBtn.onclick = () => {
-          songs.splice(i, 1)
-          if (currentIndex === i) stop()
-          renderSongs()
-        }
-
-        div.appendChild(titleInput)
-        div.appendChild(removeBtn)
-        songList.appendChild(div)
+        div.className = 'playlist'
+        div.innerHTML = `
+          <strong>${p.name}</strong>
+          ${p.imageUrl ? `<img src="${p.imageUrl}" />` : ''}
+          <input type="file" accept=".mp3" multiple onchange="addSongs(event, ${i})">
+          <div id="songs-${i}"></div>
+          <button onclick="playPlaylist(${i})">Play</button>
+          <button onclick="shufflePlaylist(${i})">Shuffle</button>
+        `
+        playlistsDiv.appendChild(div)
+        renderSongs(i)
       })
     }
 
-    function play(index) {
-      if (!songs[index]) return
-      currentIndex = index
-      audioPlayer.src = songs[index].url
-      audioPlayer.play()
+    function renderSongs(playlistIndex) {
+      const list = playlists[playlistIndex].songs
+      const container = document.getElementById(`songs-${playlistIndex}`)
+      container.innerHTML = ''
+      list.forEach((song, i) => {
+        const row = document.createElement('div')
+        row.className = 'song'
+        row.innerHTML = `
+          <input value="${song.title}" onchange="renameSong(${playlistIndex}, ${i}, this.value)">
+          <button onclick="removeSong(${playlistIndex}, ${i})">✕</button>
+        `
+        container.appendChild(row)
+      })
     }
 
-    function stop() {
-      audioPlayer.pause()
-      audioPlayer.src = ''
+    function addSongs(e, playlistIndex) {
+      const files = Array.from(e.target.files)
+      for (const file of files) {
+        playlists[playlistIndex].songs.push({
+          file,
+          url: URL.createObjectURL(file),
+          title: file.name
+        })
+      }
+      renderSongs(playlistIndex)
+    }
+
+    function renameSong(p, i, newName) {
+      playlists[p].songs[i].title = newName
+    }
+
+    function removeSong(p, i) {
+      playlists[p].songs.splice(i, 1)
+      renderSongs(p)
+    }
+
+    function playPlaylist(pIndex) {
+      if (playlists[pIndex].songs.length === 0) return
+      currentPlaylistIndex = pIndex
+      currentSongIndex = 0
+      playCurrent()
+    }
+
+    function shufflePlaylist(pIndex) {
+      const songs = playlists[pIndex].songs
+      for (let i = songs.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        [songs[i], songs[j]] = [songs[j], songs[i]]
+      }
+      playPlaylist(pIndex)
+    }
+
+    function playCurrent() {
+      const p = playlists[currentPlaylistIndex]
+      if (!p || !p.songs[currentSongIndex]) return
+      audio.src = p.songs[currentSongIndex].url
+      audio.play()
     }
 
     function togglePlay() {
-      if (audioPlayer.paused) {
-        if (!audioPlayer.src && songs.length > 0) play(currentIndex)
-        else audioPlayer.play()
+      if (!audio.src) {
+        if (currentPlaylistIndex > -1 && currentSongIndex > -1) {
+          playCurrent()
+        }
       } else {
-        audioPlayer.pause()
+        audio.paused ? audio.play() : audio.pause()
       }
     }
 
     function next() {
-      if (songs.length === 0) return
-      currentIndex = (currentIndex + 1) % songs.length
-      play(currentIndex)
+      const p = playlists[currentPlaylistIndex]
+      if (!p) return
+      currentSongIndex = (currentSongIndex + 1) % p.songs.length
+      playCurrent()
     }
 
     function prev() {
-      if (songs.length === 0) return
-      currentIndex = (currentIndex - 1 + songs.length) % songs.length
-      play(currentIndex)
+      const p = playlists[currentPlaylistIndex]
+      if (!p) return
+      currentSongIndex = (currentSongIndex - 1 + p.songs.length) % p.songs.length
+      playCurrent()
     }
+
+    function shuffle() {
+      if (currentPlaylistIndex < 0) return
+      shufflePlaylist(currentPlaylistIndex)
+    }
+
+    audio.addEventListener('ended', () => {
+      next()
+    })
   </script>
+
 </body>
 </html>
