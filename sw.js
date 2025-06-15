@@ -1,4 +1,4 @@
-const CACHE = 'offline-mp3-cache-v1';
+const CACHE = 'offline-mp3-cache-v2';
 const FILES = ['/', '/index.html', '/manifest.json', '/favicon.ico'];
 
 self.addEventListener('install', e => {
