@@ -168,28 +168,45 @@
     .volume-slider { flex: 1; height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px; cursor: pointer; }
 
     /* Add Music View */
-    #add-view .main-content { padding: 20px; }
-    .upload-form { display: flex; flex-direction: column; gap: 20px; }
+    #add-view .main-content {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+    }
+    .upload-form {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        flex: 1;
+    }
+    .upload-form .form-content {
+        flex: 1;
+        overflow-y: auto;
+        padding-bottom: 20px;
+    }
     .upload-artwork-section { text-align: center; margin-bottom: 10px; }
     .upload-artwork-preview { width: 180px; height: 180px; background: #333; border-radius: 8px; margin: 0 auto 15px; object-fit: cover; cursor: pointer; border: 1px dashed var(--system-gray); }
-    .form-group { display: flex; flex-direction: column; }
+    .form-group { display: flex; flex-direction: column; margin-bottom: 15px; }
     .form-group label { color: var(--system-gray); font-size: 14px; margin-bottom: 8px; text-transform: uppercase; }
-    .form-group input, .form-group button { background: var(--fill-tertiary); border: none; border-radius: 8px; padding: 12px; font-size: 17px; color: #fff; }
+    .form-group input { background: var(--fill-tertiary); border: none; border-radius: 8px; padding: 12px; font-size: 17px; color: #fff; }
     #upload-file-button {
       background: var(--fill-tertiary);
       border: 1px solid var(--system-pink);
       color: var(--system-pink);
       cursor: pointer;
+      padding: 12px;
+      font-size: 17px;
+      border-radius: 8px;
     }
     #submit-upload-button { 
         background: var(--system-pink);
         cursor: pointer;
         font-weight: 600;
-        margin-top: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
+        padding: 12px;
+        font-size: 17px;
+        border-radius: 8px;
+        border: none;
+        color: #fff;
     }
 
     /* Utility */
@@ -223,11 +240,13 @@
         <div class="header large-title"><h1>Add Music</h1><div class="header-profile-icon"><i class="fas fa-user"></i></div></div>
         <div class="main-content">
             <form class="upload-form" id="upload-form">
-                <div class="upload-artwork-section"><img id="upload-artwork-preview" class="upload-artwork-preview" src="https://via.placeholder.com/180?text=Artwork" data-action="triggerArtworkUpload" alt="Artwork Preview"><input type="file" id="artwork-input" class="hidden" accept="image/*"></div>
-                <div class="form-group"><label for="song-title-input">TITLE</label><input type="text" id="song-title-input" required></div>
-                <div class="form-group"><label for="song-artist-input">ARTIST</label><input type="text" id="song-artist-input" required></div>
-                <div class="form-group"><label for="song-album-input">ALBUM</label><input type="text" id="song-album-input" required></div>
-                <div class="form-group"><button type="button" id="upload-file-button" data-action="triggerSongUpload">Select Song File</button><span id="song-file-name" style="color: var(--system-gray); font-size: 14px; margin-top: 8px; text-align: center;">No file selected.</span><input type="file" id="music-file-input" class="hidden" accept=".mp3"></div>
+                <div class="form-content">
+                    <div class="upload-artwork-section"><img id="upload-artwork-preview" class="upload-artwork-preview" src="https://via.placeholder.com/180?text=Artwork" data-action="triggerArtworkUpload" alt="Artwork Preview"><input type="file" id="artwork-input" class="hidden" accept="image/*"></div>
+                    <div class="form-group"><label for="song-title-input">TITLE</label><input type="text" id="song-title-input" required></div>
+                    <div class="form-group"><label for="song-artist-input">ARTIST</label><input type="text" id="song-artist-input" required></div>
+                    <div class="form-group"><label for="song-album-input">ALBUM</label><input type="text" id="song-album-input" required></div>
+                    <div class="form-group"><button type="button" id="upload-file-button" data-action="triggerSongUpload">Select Song File</button><span id="song-file-name" style="color: var(--system-gray); font-size: 14px; margin-top: 8px; text-align: center;">No file selected.</span><input type="file" id="music-file-input" class="hidden" accept=".mp3"></div>
+                </div>
                 <button type="button" id="submit-upload-button" data-action="submitUpload">Add to Library</button>
             </form>
         </div>
@@ -235,7 +254,7 @@
     <div id="search-view" class="view">
       <div class="header large-title"><h1>Search</h1><div class="header-profile-icon"><i class="fas fa-user"></i></div></div>
       <div class="main-content">
-        <div class="search-bar"><input type="text" class="search-input" id="search-input" placeholder="Artists, Songs, Lyrics, and More"><i class="fas fa-microphone search-input-mic"></i></div>
+        <div class="search-bar"><input type="text" class="search-input" id="search-input" placeholder="Search Your Library"><i class="fas fa-microphone search-input-mic"></i></div>
         <div id="search-results-container" class="hidden"></div>
         <div id="search-categories">
             <div class="section-header"><h2>Browse Categories</h2></div>
@@ -354,7 +373,7 @@
       
     const DB = {
         init: () => new Promise(resolve => {
-            const request = indexedDB.open("AppleMusicDB_v9_Definitive", 1);
+            const request = indexedDB.open("AppleMusicDB_v10_Final", 1);
             request.onupgradeneeded = e => {
                 const db = e.target.result;
                 if (!db.objectStoreNames.contains("songs")) db.createObjectStore("songs", { keyPath: "id", autoIncrement: true });
@@ -566,9 +585,9 @@
             this.showView(lastView.id);
         },
         showSubView(type) {
-            this.renderSubView(type);
             app.navStack.push({ type: 'sub', id: type });
             DOM.views.forEach(v => v.classList.remove('active'));
+            this.renderSubView(type);
             DOM.subView.classList.add('active');
         },
         showFullPlayer() {
@@ -716,7 +735,7 @@
             div.className = 'song-list-item';
             div.dataset.action = 'playSong';
             div.dataset.id = song.id;
-            div.innerHTML = `<img class="song-list-artwork" src="${song.artwork}"><div class="song-list-info-container"><div class="song-list-info"><span class="song-list-title">${song.title}<span class="explicit-tag">E</span></span><span class="song-list-artist">${song.artist}</span></div><i class="fas fa-ellipsis-h song-menu-btn"></i></div>`;
+            div.innerHTML = `<img class="song-list-artwork" src="${song.artwork}"><div class="song-list-info-container"><div class="song-list-info"><span class="song-list-title">${song.title}<span class="explicit-tag hidden">E</span></span><span class="song-list-artist">${song.artist}</span></div><i class="fas fa-ellipsis-h song-menu-btn"></i></div>`;
             return div;
         },
         handleSearch(e) {
@@ -730,7 +749,7 @@
             resultsContainer.innerHTML = '';
             const filtered = app.library.songs.filter(s => s.title.toLowerCase().includes(query) || s.artist.toLowerCase().includes(query) || s.album.toLowerCase().includes(query));
             if(filtered.length === 0) {
-                resultsContainer.innerHTML = '<p class="empty-state">No Results</p>';
+                resultsContainer.innerHTML = '<p class="empty-state">No Results in Your Library</p>';
                 return;
             }
             filtered.forEach(song => resultsContainer.appendChild(this.createSongListItem(song)));
