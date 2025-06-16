@@ -124,6 +124,8 @@
     .playlist-info { flex: 1; }
     .playlist-title { font-size: 17px; }
     .playlist-subtitle { font-size: 14px; color: var(--system-gray); }
+    .playlist-detail-hero { padding: 20px; text-align: center; }
+    .playlist-detail-artwork { width: 200px; height: 200px; border-radius: 8px; margin: 0 auto 15px; object-fit: cover; }
 
     /* Search Page */
     .search-category-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 10px 20px; }
@@ -211,6 +213,18 @@
     .form-group input, .form-group button { background: var(--fill-tertiary); border: none; border-radius: 8px; padding: 12px; font-size: 17px; color: #fff; }
     .form-group button { background: var(--system-pink); cursor: pointer; font-weight: 600; }
 
+    /* Context Menu */
+    .context-menu-overlay { position: fixed; inset: 0; z-index: 1300; }
+    .context-menu {
+        position: absolute; background: #2c2c2e; border-radius: 12px;
+        min-width: 250px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        opacity: 0; transform: scale(0.95); transition: opacity 0.1s, transform 0.1s;
+    }
+    .context-menu.active { opacity: 1; transform: scale(1); }
+    .context-menu-item { padding: 12px 16px; font-size: 16px; border-bottom: 1px solid var(--border-color); cursor: pointer; }
+    .context-menu-item:last-child { border-bottom: none; }
+    .context-menu-item:hover { background: #3a3a3c; }
+
     /* Utility */
     .hidden { display: none; }
     .loading-overlay {
@@ -277,7 +291,6 @@
       </form>
   </div>
 
-
   <div class="now-playing-bar" id="now-playing-bar" data-action="showFullPlayer">
     <img id="np-artwork" class="now-playing-artwork" src="" alt=""><div id="np-title" class="now-playing-info">Not Playing</div>
     <div class="now-playing-controls">
@@ -307,6 +320,7 @@
   
   <audio id="audio" preload="metadata"></audio>
   <div class="loading-overlay" id="loading-overlay"><div class="spinner"></div></div>
+  <div class="context-menu-overlay" id="context-menu-overlay" data-action="closeContextMenu"></div>
   
   <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -369,17 +383,16 @@
         document.getElementById('music-file-input').addEventListener('change', e => Upload.handleSongFileSelect(e));
         document.getElementById('playlist-artwork-input').addEventListener('change', e => Playlist.handleArtworkFileSelect(e));
         document.getElementById('search-input').addEventListener('input', e => UI.handleSearch(e));
+
+        document.getElementById('sub-view-content').addEventListener('contextmenu', e => UI.handleContextMenu(e));
     }
     
     function handleAction(e) {
         const target = e.target.closest('[data-action]');
         if (!target) return;
         
-        // Prevent click if a swipe was just completed on this element
         if (Date.now() - (target.lastSwipeTime || 0) < 300) {
-            e.stopPropagation();
-            e.preventDefault();
-            return;
+            e.stopPropagation(); e.preventDefault(); return;
         }
         
         const action = target.dataset.action;
@@ -388,28 +401,28 @@
         const actions = {
             'showView': () => UI.showView(target.dataset.view),
             'goBack': UI.goBack,
-            'openUploadModal': Upload.openModal,
-            'closeUploadModal': Upload.closeModal,
-            'openCreatePlaylistModal': Playlist.openModal,
-            'closeCreatePlaylistModal': Playlist.closeModal,
+            'openUploadModal': Upload.openModal, 'closeUploadModal': Upload.closeModal,
+            'openCreatePlaylistModal': Playlist.openModal, 'closeCreatePlaylistModal': Playlist.closeModal,
             'triggerArtworkUpload': () => document.getElementById('artwork-input').click(),
             'triggerSongUpload': () => document.getElementById('music-file-input').click(),
             'triggerPlaylistArtworkUpload': () => document.getElementById('playlist-artwork-input').click(),
             'submitUpload': Upload.submit,
             'submitCreatePlaylist': Playlist.submit,
             'showSubView': () => UI.showSubView(target.dataset.type),
-            'playSong': () => Player.playSong(parseInt(target.dataset.id)),
+            'viewPlaylist': () => UI.showSubView('playlistDetail', { playlistId: parseInt(target.dataset.id) }),
+            'playSong': () => Player.playSong(parseInt(target.dataset.id), target.dataset.playlistId ? parseInt(target.dataset.playlistId) : null),
             'playAlbum': () => Player.playAlbum(target.dataset.album),
             'togglePlay': Player.togglePlay,
-            'nextSong': Player.nextSong,
-            'prevSong': Player.prevSong,
-            'showFullPlayer': UI.showFullPlayer,
-            'hideFullPlayer': UI.hideFullPlayer,
-            'seek': Player.seek,
-            'setVolume': Player.setVolume,
+            'nextSong': Player.nextSong, 'prevSong': Player.prevSong,
+            'showFullPlayer': UI.showFullPlayer, 'hideFullPlayer': UI.hideFullPlayer,
+            'seek': Player.seek, 'setVolume': Player.setVolume,
             'deleteSong': () => Library.deleteSong(parseInt(target.dataset.id)),
             'renamePlaylist': () => Library.renamePlaylist(parseInt(target.dataset.id)),
             'deletePlaylist': () => Library.deletePlaylist(parseInt(target.dataset.id)),
+            'addSongToPlaylist': () => Playlist.addSongToPlaylist(parseInt(target.dataset.songId), parseInt(target.dataset.playlistId)),
+            'closeContextMenu': UI.closeContextMenu,
+            'playAll': () => Player.playAll(target.dataset.type, target.dataset.id),
+            'shuffleAll': () => Player.shuffleAll(target.dataset.type, target.dataset.id),
         };
         
         if (actions[action]) actions[action](e);
@@ -417,7 +430,7 @@
       
     const DB = {
         init: () => new Promise(resolve => {
-            const request = indexedDB.open("AppleMusicDB_v11_Final", 1);
+            const request = indexedDB.open("AppleMusicDB_v12_Final", 1);
             request.onupgradeneeded = e => {
                 const db = e.target.result;
                 if (!db.objectStoreNames.contains("songs")) db.createObjectStore("songs", { keyPath: "id", autoIncrement: true });
@@ -566,6 +579,15 @@
             UI.renderSubView('playlists');
             UI.showLoading(false);
             this.closeModal();
+        },
+        async addSongToPlaylist(songId, playlistId) {
+            const playlist = app.library.playlists.find(p => p.id === playlistId);
+            if (playlist && !playlist.songs.includes(songId)) {
+                playlist.songs.push(songId);
+                await DB.put('playlists', playlist);
+                UI.closeContextMenu();
+                alert('Song added to playlist!');
+            }
         }
     };
     
@@ -624,7 +646,6 @@
         }
         handleTouchEnd() {
             if (!this.touch.isDragging) return;
-            this.touch.isDragging = false;
             this.touch.target.classList.remove('no-transition');
             const deltaX = this.touch.currentX - this.touch.startX;
             const actionsWidth = this.touch.listItem.querySelector('.swipe-actions').offsetWidth;
@@ -636,6 +657,7 @@
                 this.touch.target.style.transform = 'translateX(0)';
             }
             this.touch.target.lastSwipeTime = Date.now();
+            this.touch.isDragging = false;
         }
         resetAllSwipes() {
             document.querySelectorAll('.swipe-content').forEach(el => el.style.transform = 'translateX(0)');
@@ -643,11 +665,45 @@
     }
 
     const Player = {
-        playSong(songId) {
-            const songIndex = app.library.songs.findIndex(s => s.id === songId);
+        playSong(songId, playlistId = null) {
+            let baseQueue = app.library.songs;
+            if (playlistId) {
+                const playlist = app.library.playlists.find(p => p.id === playlistId);
+                if (playlist) {
+                    baseQueue = playlist.songs.map(id => app.library.songs.find(s => s.id === id)).filter(Boolean);
+                }
+            }
+            const songIndex = baseQueue.findIndex(s => s.id === songId);
             if (songIndex === -1) return;
-            app.nowPlaying.queue = app.library.songs.map(s => s.id);
+            
+            app.nowPlaying.queue = baseQueue.map(s => s.id);
             this.playFromQueue(songIndex);
+        },
+        playAll(type, id = null) {
+            let songs = [];
+            if (type === 'songs') songs = app.library.songs;
+            else if (type === 'albums') songs = Object.values(app.library.albums).flatMap(a => a.songs);
+            else if (type === 'playlist' && id) {
+                const playlist = app.library.playlists.find(p => p.id == id);
+                if (playlist) songs = playlist.songs.map(songId => app.library.songs.find(s => s.id === songId)).filter(Boolean);
+            }
+            
+            if(songs.length === 0) return;
+            app.nowPlaying.queue = songs.map(s => s.id);
+            this.playFromQueue(0);
+        },
+        shuffleAll(type, id = null) {
+            let songs = [];
+            if (type === 'songs') songs = app.library.songs;
+            else if (type === 'albums') songs = Object.values(app.library.albums).flatMap(a => a.songs);
+            else if (type === 'playlist' && id) {
+                const playlist = app.library.playlists.find(p => p.id == id);
+                if (playlist) songs = playlist.songs.map(songId => app.library.songs.find(s => s.id === songId)).filter(Boolean);
+            }
+
+            if(songs.length === 0) return;
+            app.nowPlaying.queue = this.shuffleArray(songs.map(s => s.id));
+            this.playFromQueue(0);
         },
         playAlbum(albumName) {
             const album = app.library.albums[albumName];
@@ -709,6 +765,13 @@
             document.getElementById('total-time').textContent = `-${Player.formatTime(duration - currentTime)}`;
         },
         formatTime: s => `${Math.floor(s/60)}:${Math.floor(s%60).toString().padStart(2,'0')}`,
+        shuffleArray: (array) => {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
     };
     
     const UI = {
@@ -718,11 +781,9 @@
             document.querySelectorAll('.tab-item').forEach(t => t.classList.toggle('active', t.dataset.view === viewId));
             DOM.subView.classList.remove('active');
         },
-        goBack() {
-            this.showView('library');
-        },
-        showSubView(type) {
-            this.renderSubView(type);
+        goBack() { this.showView('library'); },
+        showSubView(type, data = {}) {
+            this.renderSubView(type, data);
             DOM.views.forEach(v => v.classList.remove('active'));
             DOM.subView.classList.add('active');
         },
@@ -749,7 +810,7 @@
         updatePlayerBackground(imgSrc) {
             const img = new Image; img.crossOrigin = "Anonymous"; img.src = imgSrc;
             img.onload = () => {
-                const c=document.createElement("canvas"), ctx=c.getContext("2d"); ctx.drawImage(img,0,0,1,1);
+                const c=document.createElement("canvas"), ctx=c.getContext("2d"); c.width=1; c.height=1; ctx.drawImage(img,0,0,1,1);
                 const [r,g,b] = ctx.getImageData(0,0,1,1).data;
                 DOM.fullPlayer.style.backgroundImage = `linear-gradient(to bottom, rgb(${r},${g},${b}) 0%, #000 70%)`;
             };
@@ -768,26 +829,50 @@
             ].forEach(item => navList.appendChild(this.createListItem(item)));
             const recentGrid = container.querySelector('#library-recent-grid');
             const recentSongs = [...app.library.songs].sort((a,b)=>b.addedAt-a.addedAt).slice(0,4);
-            recentGrid.innerHTML = '';
             const sectionHeader = container.querySelector('.section-header');
             if (recentSongs.length > 0) {
                 sectionHeader.classList.remove('hidden');
+                recentGrid.innerHTML = '';
                 recentSongs.forEach(song => recentGrid.appendChild(this.createGridItem(song, 'playSong')));
             } else {
                 sectionHeader.classList.add('hidden');
             }
         },
-        renderSubView(type) {
-            const titleMap = { playlists: 'Playlists', artists: 'Artists', albums: 'Albums', songs: 'Songs' };
-            document.getElementById('sub-view-title').textContent = titleMap[type];
+        renderSubView(type, data) {
+            const titleMap = { playlists: 'Playlists', artists: 'Artists', albums: 'Albums', songs: 'Songs', playlistDetail: 'Playlist' };
+            document.getElementById('sub-view-title').textContent = titleMap[type] || 'Library';
             const actionsContainer = document.getElementById('sub-view-actions');
             actionsContainer.innerHTML = (type === 'playlists') ? '<button class="icon-btn" data-action="openCreatePlaylistModal"><i class="fas fa-plus"></i></button>' : '';
             
             const contentContainer = document.getElementById('sub-view-content');
-            contentContainer.innerHTML = `<div class="search-bar"><input type="text" class="search-input" placeholder="Search in ${titleMap[type]}"></div>`;
             
-            const rendererMap = {'playlists': this.renderPlaylistsView, 'artists': this.renderArtistsView, 'albums': this.renderAlbumsView, 'songs': this.renderSongsView};
-            if(rendererMap[type]) rendererMap[type].call(this, contentContainer);
+            const rendererMap = {
+                'playlists': this.renderPlaylistsView, 'artists': this.renderArtistsView,
+                'albums': this.renderAlbumsView, 'songs': this.renderSongsView,
+                'playlistDetail': (container) => this.renderPlaylistDetailView(container, data.playlistId)
+            };
+            if(rendererMap[type]) {
+                contentContainer.innerHTML = (type !== 'playlistDetail') ? `<div class="search-bar"><input type="text" class="search-input" placeholder="Search in ${titleMap[type]}"></div>` : '';
+                rendererMap[type].call(this, contentContainer);
+            }
+        },
+        renderPlaylistDetailView(container, playlistId) {
+            const playlist = app.library.playlists.find(p => p.id === playlistId);
+            if (!playlist) { container.innerHTML = '<p class="empty-state">Playlist not found.</p>'; return; }
+            
+            document.getElementById('sub-view-title').textContent = playlist.name;
+
+            const hero = document.createElement('div');
+            hero.className = 'playlist-detail-hero';
+            hero.innerHTML = `<img class="playlist-detail-artwork" src="${playlist.artwork || 'https://via.placeholder.com/200?text=No+Art'}"><div class="action-buttons"><button class="action-btn" data-action="playAll" data-type="playlist" data-id="${playlist.id}">Play</button><button class="action-btn" data-action="shuffleAll" data-type="playlist" data-id="${playlist.id}">Shuffle</button></div>`;
+            container.appendChild(hero);
+            
+            const songsInPlaylist = playlist.songs.map(id => app.library.songs.find(s => s.id === id)).filter(Boolean);
+            if (songsInPlaylist.length === 0) {
+                container.innerHTML += '<p class="empty-state">No songs in this playlist. Long-press on a song to add it.</p>';
+                return;
+            }
+            songsInPlaylist.forEach(song => container.appendChild(this.createSongListItem(song, playlist.id)));
         },
         renderPlaylistsView(container) {
              const frag = document.createDocumentFragment();
@@ -795,7 +880,7 @@
              frag.appendChild(fav);
 
              app.library.playlists.forEach(p => frag.appendChild(this.createPlaylistItem(p)));
-             if (app.library.playlists.length === 0 && !container.querySelector('.swipeable-list-item')) {
+             if (app.library.playlists.length === 0) {
                 container.innerHTML += '<p class="empty-state">No playlists. Create one with the + button.</p>';
              }
              container.appendChild(frag);
@@ -807,8 +892,8 @@
         },
         renderAlbumsView(container) {
             const albums = Object.keys(app.library.albums).sort();
-            if (albums.length === 0) { container.innerHTML += '<p class="empty-state">No albums found.</p>'; return; }
-            container.innerHTML += `<div class="action-buttons"><button class="action-btn">Play</button><button class="action-btn">Shuffle</button></div>`;
+            if (albums.length === 0) { container.innerHTML += `<p class="empty-state">No albums found.</p>`; return; }
+            container.innerHTML += `<div class="action-buttons"><button class="action-btn" data-action="playAll" data-type="albums">Play</button><button class="action-btn" data-action="shuffleAll" data-type="albums">Shuffle</button></div>`;
             const grid = document.createElement('div');
             grid.className = 'grid';
             albums.forEach(name => grid.appendChild(this.createGridItem(app.library.albums[name], 'playAlbum', name)));
@@ -817,11 +902,11 @@
         renderSongsView(container) {
             const songs = app.library.songs;
             if (songs.length === 0) { container.innerHTML += '<p class="empty-state">No songs found.</p>'; return; }
-            container.innerHTML += `<div class="action-buttons"><button class="action-btn">Play</button><button class="action-btn">Shuffle</button></div>`;
+            container.innerHTML += `<div class="action-buttons"><button class="action-btn" data-action="playAll" data-type="songs">Play</button><button class="action-btn" data-action="shuffleAll" data-type="songs">Shuffle</button></div>`;
             songs.forEach(song => container.appendChild(this.createSongListItem(song)));
         },
         createListItem(item) {
-            const div = document.createElement('div');
+            const div = document.createElement("div");
             div.className = "list-item-wrapper";
             div.innerHTML = `<div class="list-item-content" data-action="showSubView" data-type="${item.type}"><div class="list-icon"><i class="fas ${item.icon}"></i></div><div class="list-text">${item.text}</div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div></div>`;
             return div;
@@ -829,11 +914,11 @@
         createFavoritePlaylistItem() {
              const div = document.createElement('div');
              div.className = "swipeable-list-item";
-             div.innerHTML = `<div class="swipe-content" data-action="viewPlaylist"><div class="playlist-item-artwork" id="favorite-playlist-artwork"><i class="fas fa-star"></i></div><div class="song-list-info-container"><div class="playlist-info"><div class="playlist-title">Favorite Songs</div></div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div></div></div>`;
+             div.innerHTML = `<div class="swipe-content" data-action="viewPlaylist" data-id="-1"><div class="playlist-item-artwork" id="favorite-playlist-artwork"><i class="fas fa-star"></i></div><div class="song-list-info-container"><div class="playlist-info"><div class="playlist-title">Favorite Songs</div></div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div></div></div>`;
              return div;
         },
         createPlaylistItem(playlist) {
-            const div = document.createElement('div');
+            const div = document.createElement("div");
             div.className = "swipeable-list-item";
             div.innerHTML = `<div class="swipe-actions"><button class="swipe-action-btn" data-action="renamePlaylist" data-id="${playlist.id}">Rename</button><button class="swipe-action-btn delete" data-action="deletePlaylist" data-id="${playlist.id}">Delete</button></div><div class="swipe-content" data-action="viewPlaylist" data-id="${playlist.id}"><img class="song-list-artwork" src="${playlist.artwork || 'https://via.placeholder.com/54'}" /><div class="song-list-info-container"><div class="playlist-info"><div class="playlist-title">${playlist.name}</div><div class="playlist-subtitle">${playlist.songs.length} songs</div></div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div></div></div>`;
             return div;
@@ -845,10 +930,10 @@
             return div;
         },
         createGridItem(item, action, name) {
-            const div = document.createElement('div');
+            const div = document.createElement("div");
             div.className = "grid-item";
             div.dataset.action = action;
-            if(action === 'playSong') {
+            if (action === 'playSong') {
                 div.dataset.id = item.id;
                 div.innerHTML = `<img src="${item.artwork}" alt="${item.album}"><div class="grid-item-title">${item.title}</div><div class="grid-item-subtitle">${item.artist}</div>`;
             } else if (action === 'playAlbum') {
@@ -857,10 +942,22 @@
             }
             return div;
         },
-        createSongListItem(song) {
+        createSongListItem(song, playlistId = null) {
             const div = document.createElement("div");
             div.className = "swipeable-list-item";
-            div.innerHTML = `<div class="swipe-actions"><button class="swipe-action-btn delete" data-action="deleteSong" data-id="${song.id}">Delete</button></div><div class="swipe-content" data-action="playSong" data-id="${song.id}"><img class="song-list-artwork" src="${song.artwork}"><div class="song-list-info-container"><div class="song-list-info"><span class="song-list-title">${song.title}<span class="explicit-tag">E</span></span><span class="song-list-artist">${song.artist}</span></div><i class="fas fa-ellipsis-h song-menu-btn"></i></div></div>`;
+            const content = document.createElement('div');
+            content.className = "swipe-content";
+            content.dataset.action = "playSong";
+            content.dataset.id = song.id;
+            if (playlistId) content.dataset.playlistId = playlistId;
+            content.innerHTML = `<img class="song-list-artwork" src="${song.artwork}"><div class="song-list-info-container"><div class="song-list-info"><span class="song-list-title">${song.title}<span class="explicit-tag">E</span></span><span class="song-list-artist">${song.artist}</span></div><i class="fas fa-ellipsis-h song-menu-btn"></i></div></div>`;
+            
+            const actions = document.createElement('div');
+            actions.className = 'swipe-actions';
+            actions.innerHTML = `<button class="swipe-action-btn delete" data-action="deleteSong" data-id="${song.id}">Delete</button>`;
+            
+            div.appendChild(actions);
+            div.appendChild(content);
             return div;
         },
         handleSearch(e) {
@@ -879,6 +976,41 @@
             }
             filtered.forEach(song => resultsContainer.appendChild(this.createSongListItem(song)));
         },
+        handleContextMenu(e) {
+            const songItem = e.target.closest('.swipeable-list-item .swipe-content[data-action="playSong"]');
+            if (!songItem) return;
+            e.preventDefault();
+
+            this.closeContextMenu();
+            
+            const songId = parseInt(songItem.dataset.id);
+            const menu = document.createElement('div');
+            menu.className = 'context-menu';
+            
+            let menuItems = '<div class="context-menu-item">Add to Playlist...</div>';
+            app.library.playlists.forEach(p => {
+                menuItems += `<div class="context-menu-item" data-action="addSongToPlaylist" data-song-id="${songId}" data-playlist-id="${p.id}">${p.name}</div>`;
+            });
+
+            menu.innerHTML = menuItems;
+            document.body.appendChild(menu);
+
+            const { clientX, clientY } = e;
+            menu.style.top = `${clientY}px`;
+            menu.style.left = `${clientX}px`;
+            
+            const menuRect = menu.getBoundingClientRect();
+            if (menuRect.right > window.innerWidth - 10) menu.style.left = `${window.innerWidth - menuRect.width - 10}px`;
+            if (menuRect.bottom > window.innerHeight - 10) menu.style.top = `${window.innerHeight - menuRect.height - 10}px`;
+            
+            setTimeout(() => menu.classList.add('active'), 0);
+            document.getElementById('context-menu-overlay').classList.add('active');
+        },
+        closeContextMenu() {
+            const menu = document.querySelector('.context-menu');
+            if (menu) menu.remove();
+            document.getElementById('context-menu-overlay').classList.remove('active');
+        }
     };
     
     init();
