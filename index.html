@@ -100,7 +100,7 @@
     .playlist-info { flex: 1; }
     .playlist-title { font-size: 17px; }
     .playlist-subtitle { font-size: 14px; color: var(--system-gray); }
-    
+
     .search-category-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 10px 20px; }
     .category-item { position: relative; cursor: pointer; }
     .category-item img { width: 100%; display: block; border-radius: 8px; aspect-ratio: 1.5 / 1; object-fit: cover; }
@@ -190,7 +190,7 @@
     </div>
     <div id="sub-view" class="view">
         <div class="header header-with-back">
-            <button class="back-btn" data-action="goBack"><i class="fas fa-chevron-left"></i> <span>Library</span></button>
+            <button class="back-btn" data-action="goBack"><i class="fas fa-chevron-left"></i> <span id="back-btn-text"></span></button>
             <h1 id="sub-view-title"></h1>
             <div class="header-actions" id="sub-view-actions"></div>
         </div>
@@ -215,7 +215,7 @@
         <div class="header header-with-back">
             <button class="back-btn" data-action="closeUploadModal">Cancel</button>
             <h1 style="text-align: center;">Add Music</h1>
-            <div class="header-actions"></div>
+            <div class="header-actions" style="width: 60px;"></div>
         </div>
         <div class="main-content">
             <form class="modal-form-container" id="upload-form">
@@ -233,7 +233,7 @@
         <div class="header header-with-back">
             <button class="back-btn" data-action="closeCreatePlaylistModal">Cancel</button>
             <h1 style="text-align: center;">New Playlist</h1>
-            <div class="header-actions"></div>
+            <div class="header-actions" style="width: 60px;"></div>
         </div>
         <div class="main-content">
             <form class="modal-form-container" id="create-playlist-form">
@@ -340,6 +340,8 @@
             'showSubView': () => UI.showSubView(target.dataset.type, target.dataset.id),
             'playSong': () => Player.playSong(parseInt(target.dataset.id)),
             'playAlbum': () => Player.playAlbum(target.dataset.album),
+            'playPlaylist': () => Player.playPlaylist(target.dataset.id),
+            'shufflePlaylist': () => Player.playPlaylist(target.dataset.id, true),
             'togglePlay': Player.togglePlay,
             'nextSong': Player.nextSong,
             'prevSong': Player.prevSong,
@@ -355,14 +357,16 @@
       
     const DB = {
         init: () => new Promise(resolve => {
-            const request = indexedDB.open("AppleMusicDB_v10_Final", 2);
+            const request = indexedDB.open("AppleMusicDB_v11_Final", 1);
             request.onupgradeneeded = e => {
                 const db = e.target.result;
                 if (!db.objectStoreNames.contains("songs")) {
                     const songStore = db.createObjectStore("songs", { keyPath: "id", autoIncrement: true });
                     songStore.createIndex("isFavorite", "isFavorite", { unique: false });
                 }
-                if (!db.objectStoreNames.contains("playlists")) db.createObjectStore("playlists", { keyPath: "id", autoIncrement: true });
+                if (!db.objectStoreNames.contains("playlists")) {
+                   const playlistStore = db.createObjectStore("playlists", { keyPath: "id", autoIncrement: true });
+                }
             };
             request.onsuccess = e => { app.db = e.target.result; resolve(); };
         }),
@@ -388,38 +392,61 @@
         }
     };
     
-    const ModalManager = (sheetId, overlayId) => ({
-        open: () => {
-            document.getElementById(sheetId).classList.add('active');
-            document.getElementById(overlayId).classList.add('active');
-        },
-        close: () => {
-            document.getElementById(sheetId).classList.remove('active');
-            document.getElementById(overlayId).classList.remove('active');
-        }
-    });
-    
     const Upload = {
-        modal: ModalManager('upload-view', 'library-view'),
         openModal: () => UI.showView('upload'),
-        closeModal: () => UI.showView('library'),
+        closeModal: () => { Upload.resetForm(); UI.showView('library'); },
         resetForm() {
             document.getElementById('upload-form').reset();
             document.getElementById('upload-artwork-preview').src = 'https://via.placeholder.com/150?text=Artwork';
             document.getElementById('song-file-name').textContent = 'No file selected.';
             app.uploadData = { songFile: null, artworkBase64: null };
         },
-        handleSongFileSelect(e) { /* ... unchanged ... */ },
-        handleArtworkFileSelect(e) { /* ... unchanged ... */ },
-        async submit() { /* ... unchanged ... */ }
+        handleSongFileSelect(e) {
+            app.uploadData.songFile = e.target.files[0];
+            if (!app.uploadData.songFile) return;
+            document.getElementById('song-file-name').textContent = app.uploadData.songFile.name;
+            jsmediatags.read(app.uploadData.songFile, {
+                onSuccess: ({ tags }) => {
+                    if (tags.title) document.getElementById('song-title-input').value = tags.title;
+                    if (tags.artist) document.getElementById('song-artist-input').value = tags.artist;
+                    if (tags.album) document.getElementById('song-album-input').value = tags.album;
+                    if (tags.picture) {
+                        const base64String = btoa(String.fromCharCode.apply(null, tags.picture.data));
+                        app.uploadData.artworkBase64 = `data:${tags.picture.format};base64,${base64String}`;
+                        document.getElementById('upload-artwork-preview').src = app.uploadData.artworkBase64;
+                    }
+                }
+            });
+        },
+        handleArtworkFileSelect(e) {
+            const file = e.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = re => {
+                app.uploadData.artworkBase64 = re.target.result;
+                document.getElementById('upload-artwork-preview').src = app.uploadData.artworkBase64;
+            };
+            reader.readAsDataURL(file);
+        },
+        async submit() {
+            const song = {
+                title: document.getElementById('song-title-input').value, artist: document.getElementById('song-artist-input').value,
+                album: document.getElementById('song-album-input').value, file: app.uploadData.songFile,
+                artwork: app.uploadData.artworkBase64 || 'https://via.placeholder.com/300?text=No+Art',
+                addedAt: Date.now(), isFavorite: false,
+            };
+            if (!song.title || !song.artist || !song.album || !song.file) { alert("Please fill all fields and select a song file."); return; }
+            UI.showLoading(true);
+            await DB.add('songs', song);
+            await Library.loadAllData();
+            UI.renderAll();
+            UI.showLoading(false);
+            this.closeModal();
+        }
     };
-    Upload.handleSongFileSelect = function(e){app.uploadData.songFile=e.target.files[0];if(!app.uploadData.songFile)return;document.getElementById("song-file-name").textContent=app.uploadData.songFile.name,jsmediatags.read(app.uploadData.songFile,{onSuccess:({tags})=>{tags.title&&(document.getElementById("song-title-input").value=tags.title),tags.artist&&(document.getElementById("song-artist-input").value=tags.artist),tags.album&&(document.getElementById("song-album-input").value=tags.album),tags.picture&&(app.uploadData.artworkBase64=`data:${tags.picture.format};base64,${btoa(String.fromCharCode.apply(null,tags.picture.data))}`,document.getElementById("upload-artwork-preview").src=app.uploadData.artworkBase64)}})};
-    Upload.handleArtworkFileSelect = function(e){const t=e.target.files[0];if(!t)return;const a=new FileReader;a.onload=e=>{app.uploadData.artworkBase64=e.target.result,document.getElementById("upload-artwork-preview").src=app.uploadData.artworkBase64},a.readAsDataURL(t)};
-    Upload.submit = async function(){const e={title:document.getElementById("song-title-input").value,artist:document.getElementById("song-artist-input").value,album:document.getElementById("song-album-input").value,file:app.uploadData.songFile,artwork:app.uploadData.artworkBase64||"https://via.placeholder.com/300?text=No+Art",addedAt:Date.now(),isFavorite:!1};if(!e.title||!e.artist||!e.album||!e.file)return void alert("Please fill all fields and select a song file.");UI.showLoading(!0),await DB.add("songs",e),await Library.loadAllData(),UI.renderAll(),UI.showLoading(!1),this.closeModal()};
     
     const Playlist = {
         openModal: () => UI.showView('create-playlist'),
-        closeModal: () => UI.showSubView('playlists'),
+        closeModal: () => { Playlist.resetForm(); UI.showSubView('playlists'); },
         resetForm() {
             document.getElementById('create-playlist-form').reset();
             document.getElementById('playlist-artwork-preview').src = 'https://via.placeholder.com/150?text=Artwork';
@@ -435,10 +462,10 @@
             const name = document.getElementById('playlist-name-input').value;
             if (!name.trim()) { alert("Please enter a playlist name."); return; }
             UI.showLoading(true);
-            await DB.add('playlists', { name, songs: [], artwork: app.playlistData.artworkBase64, createdAt: Date.now() });
+            const playlist = { name, songs: [], artwork: app.playlistData.artworkBase64, createdAt: Date.now() };
+            await DB.add('playlists', playlist);
             await Library.loadAllData();
             this.closeModal();
-            UI.renderSubView('playlists');
             UI.showLoading(false);
         }
     };
@@ -456,26 +483,71 @@
             app.nowPlaying.queue = album.songs.map(s => s.id);
             this.playFromQueue(0);
         },
-        playPlaylist(playlistId) {
-            let songs = [];
-            if(playlistId === 'favorites') {
-                songs = app.library.songs.filter(s => s.isFavorite);
+        playPlaylist(playlistId, shuffle = false) {
+            let songIds = [];
+            if (playlistId === 'favorites') {
+                songIds = app.library.songs.filter(s => s.isFavorite).map(s => s.id);
             } else {
-                const playlist = app.library.playlists.find(p => p.id === playlistId);
-                songs = app.library.songs.filter(s => playlist.songs.includes(s.id));
+                const playlist = app.library.playlists.find(p => p.id === parseInt(playlistId));
+                songIds = playlist ? playlist.songs : [];
             }
-            if (songs.length === 0) return;
-            app.nowPlaying.queue = songs.map(s => s.id);
+            if (songIds.length === 0) return;
+            if (shuffle) { songIds.sort(() => Math.random() - 0.5); }
+            app.nowPlaying.queue = songIds;
             this.playFromQueue(0);
         },
-        loadSong(song) { /* ... */ },
-        togglePlay() { /* ... */ },
-        nextSong() { /* ... */ },
-        prevSong() { /* ... */ },
-        playFromQueue(index) { /* ... */ },
-        seek: e => { /* ... */ },
-        setVolume: e => { /* ... */ },
-        updateProgress: () => { /* ... */ },
+        loadSong(song) {
+            app.nowPlaying.id = song.id;
+            DOM.audio.src = URL.createObjectURL(song.file);
+            DOM.audio.play().catch(e => console.error("Audio play failed:", e));
+            app.nowPlaying.isPlaying = true;
+            UI.updatePlayerUI();
+        },
+        togglePlay() {
+            if (!app.nowPlaying.id) return;
+            app.nowPlaying.isPlaying ? DOM.audio.pause() : DOM.audio.play();
+            app.nowPlaying.isPlaying = !app.nowPlaying.isPlaying;
+            UI.updatePlayIcons();
+        },
+        nextSong() {
+            if (app.nowPlaying.queue.length === 0) return;
+            const nextIndex = (app.nowPlaying.currentIndex + 1) % app.nowPlaying.queue.length;
+            this.playFromQueue(nextIndex);
+        },
+        prevSong() {
+            if (DOM.audio.currentTime > 3 || app.nowPlaying.currentIndex === 0) {
+                DOM.audio.currentTime = 0;
+            } else {
+                const prevIndex = (app.nowPlaying.currentIndex - 1 + app.nowPlaying.queue.length) % app.nowPlaying.queue.length;
+                this.playFromQueue(prevIndex);
+            }
+        },
+        playFromQueue(index) {
+            if (app.nowPlaying.queue.length === 0) return;
+            const songId = app.nowPlaying.queue[index];
+            const song = app.library.songs.find(s => s.id === songId);
+            if (song) {
+                app.nowPlaying.currentIndex = index;
+                this.loadSong(song);
+            }
+        },
+        seek: e => {
+            if (!app.nowPlaying.id) return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            DOM.audio.currentTime = DOM.audio.duration * ((e.clientX - rect.left) / rect.width);
+        },
+        setVolume: e => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            DOM.audio.volume = (e.clientX - rect.left) / rect.width;
+            document.getElementById('volume-fill').style.width = `${DOM.audio.volume * 100}%`;
+        },
+        updateProgress: () => {
+            if (!DOM.audio.duration) return;
+            const { currentTime, duration } = DOM.audio;
+            document.getElementById('progress-fill').style.width = `${(currentTime / duration) * 100}%`;
+            document.getElementById('current-time').textContent = Player.formatTime(currentTime);
+            document.getElementById('total-time').textContent = `-${Player.formatTime(duration - currentTime)}`;
+        },
         formatTime: s => `${Math.floor(s/60)}:${Math.floor(s%60).toString().padStart(2,'0')}`,
         async toggleFavorite() {
             if (!app.nowPlaying.id) return;
@@ -486,7 +558,6 @@
             UI.updateFavoriteButton(song.isFavorite);
         }
     };
-    Player.loadSong=function(e){app.nowPlaying.id=e.id,DOM.audio.src=URL.createObjectURL(e.file),DOM.audio.play().catch(e=>console.error("Audio play failed:",e)),app.nowPlaying.isPlaying=!0,UI.updatePlayerUI()},Player.togglePlay=function(){app.nowPlaying.id&&(app.nowPlaying.isPlaying?DOM.audio.pause():DOM.audio.play(),app.nowPlaying.isPlaying=!app.nowPlaying.isPlaying,UI.updatePlayIcons())},Player.nextSong=function(){if(0!==app.nowPlaying.queue.length){const e=(app.nowPlaying.currentIndex+1)%app.nowPlaying.queue.length;this.playFromQueue(e)}},Player.prevSong=function(){DOM.audio.currentTime>3||0===app.nowPlaying.currentIndex?DOM.audio.currentTime=0:this.playFromQueue((app.nowPlaying.currentIndex-1+app.nowPlaying.queue.length)%app.nowPlaying.queue.length)},Player.playFromQueue=function(e){if(0!==app.nowPlaying.queue.length){const t=app.nowPlaying.queue[e],a=app.library.songs.find(e=>e.id===t);a&&(app.nowPlaying.currentIndex=e,this.loadSong(a))}},Player.seek=function(e){if(!app.nowPlaying.id)return;const t=e.currentTarget.getBoundingClientRect();DOM.audio.currentTime=DOM.audio.duration*(e.clientX-t.left)/t.width},Player.setVolume=function(e){const t=e.currentTarget.getBoundingClientRect();DOM.audio.volume=(e.clientX-t.left)/t.width,document.getElementById("volume-fill").style.width=`${100*DOM.audio.volume}%`},Player.updateProgress=function(){if(!DOM.audio.duration)return;const{currentTime:e,duration:t}=DOM.audio;document.getElementById("progress-fill").style.width=`${e/t*100}%`,document.getElementById("current-time").textContent=Player.formatTime(e),document.getElementById("total-time").textContent=`-${Player.formatTime(t-e)}`};
 
     const UI = {
         showLoading: (show) => DOM.loadingOverlay.classList.toggle('active', show),
@@ -494,11 +565,23 @@
             DOM.views.forEach(v => v.classList.toggle('active', v.id === `${viewId}-view`));
             document.querySelectorAll('.tab-item').forEach(t => t.classList.toggle('active', t.dataset.view === viewId));
         },
-        goBack() { this.showView('library'); },
+        goBack(e) {
+            const fromView = e.target.closest('.view').id;
+            if (fromView === 'sub-view') {
+                const previousView = document.querySelector('#sub-view .back-btn span').textContent;
+                if (previousView === 'Playlists') {
+                    this.showSubView('playlists');
+                } else {
+                    this.showView('library');
+                }
+            } else {
+                 this.showView('library');
+            }
+        },
         showSubView(type, id = null) {
-            this.renderSubView(type, id);
             DOM.views.forEach(v => v.classList.remove('active'));
             document.getElementById('sub-view').classList.add('active');
+            this.renderSubView(type, id);
         },
         showFullPlayer() { if (app.nowPlaying.id) document.getElementById('player-view').classList.add('active'); },
         hideFullPlayer() { document.getElementById('player-view').classList.remove('active'); },
@@ -520,25 +603,96 @@
             const btn = document.querySelector('.favorite-btn i');
             if (btn) btn.className = isFavorite ? 'fas fa-heart' : 'far fa-heart';
         },
-        updatePlayIcons() { /* ... */ },
-        updatePlayerBackground(imgSrc) { /* ... */ },
+        updatePlayIcons() {
+            const isPlaying = app.nowPlaying.isPlaying;
+            document.getElementById('np-play-icon').className = `fas ${isPlaying ? 'fa-pause' : 'fa-play'}`;
+            document.getElementById('main-play-icon').className = `fas ${isPlaying ? 'fa-pause-circle' : 'fa-play-circle'}`;
+        },
+        updatePlayerBackground(imgSrc) {
+            const img = new Image; img.crossOrigin = "Anonymous"; img.src = imgSrc;
+            img.onload = () => {
+                const c=document.createElement("canvas"), ctx=c.getContext("2d"); ctx.drawImage(img,0,0,1,1);
+                const [r,g,b] = ctx.getImageData(0,0,1,1).data;
+                document.getElementById('player-view').style.backgroundImage = `linear-gradient(to bottom, rgb(${r},${g},${b}) 0%, #000 70%)`;
+            };
+            img.onerror = () => { document.getElementById('player-view').style.backgroundImage = 'linear-gradient(to bottom, #222 0%, #000 70%)'};
+        },
         renderAll() { this.renderLibraryView(); },
-        renderLibraryView() { /* ... */ },
-        renderSubView(type, id) { /* ... */ },
-        renderPlaylistsView(container) { /* ... */ },
-        renderPlaylistDetailView(container, playlistId) { /* ... */ },
-        renderArtistsView(container) { /* ... */ },
-        renderAlbumsView(container) { /* ... */ },
-        renderSongsView(container) { /* ... */ },
-        createListItem: (item) => { /* ... */ },
-        createPlaylistItem: (playlist) => { /* ... */ },
-        createArtistListItem: (name, artwork) => { /* ... */ },
-        createGridItem: (item, action, name) => { /* ... */ },
-        createSongListItem: (song) => { /* ... */ },
-        handleSearch: (e) => { /* ... */ },
-    };
-    UI.updatePlayIcons=function(){const e=app.nowPlaying.isPlaying;document.getElementById("np-play-icon").className=`fas ${e?"fa-pause":"fa-play"}`,document.getElementById("main-play-icon").className=`fas ${e?"fa-pause-circle":"fa-play-circle"}`},UI.updatePlayerBackground=function(e){const t=new Image;t.crossOrigin="Anonymous",t.src=e,t.onload=()=>{const e=document.createElement("canvas"),a=e.getContext("2d");a.drawImage(t,0,0,1,1);const i=a.getImageData(0,0,1,1).data;document.getElementById('player-view').style.backgroundImage=`linear-gradient(to bottom, rgb(${i[0]},${i[1]},${i[2]}) 0%, #000 70%)`},t.onerror=()=>{document.getElementById('player-view').style.backgroundImage="linear-gradient(to bottom, #222 0%, #000 70%)"}},UI.renderLibraryView=function(){const e=document.getElementById("library-content");e.innerHTML=`<div id="library-nav-list"></div><div class="section-header"><h2>Recently Added</h2></div><div class="grid" id="library-recent-grid"></div>`;const t=e.querySelector("#library-nav-list");[{type:"playlists",icon:"fa-list-music",text:"Playlists"},{type:"artists",icon:"fa-microphone-alt",text:"Artists"},{type:"albums",icon:"fa-compact-disc",text:"Albums"},{type:"songs",icon:"fa-music",text:"Songs"}].forEach(e=>t.appendChild(this.createListItem(e)));const a=e.querySelector("#library-recent-grid"),i=[...app.library.songs].sort((e,t)=>t.addedAt-e.addedAt).slice(0,4);a.innerHTML="";const l=e.querySelector(".section-header");i.length>0?(l.classList.remove("hidden"),i.forEach(e=>a.appendChild(this.createGridItem(e,"playSong")))):l.classList.add("hidden")},UI.renderSubView=function(e,t){const a={playlists:"Playlists",artists:"Artists",albums:"Albums",songs:"Songs"};if("playlistDetail"===e){const i=t==="favorites"?"Favorite Songs":app.library.playlists.find(e=>e.id===parseInt(t))?.name;a.playlistDetail=i,document.querySelector("#sub-view .back-btn span").textContent="Playlists"}else document.querySelector("#sub-view .back-btn span").textContent="Library";document.getElementById("sub-view-title").textContent=a[e];const i=document.getElementById("sub-view-actions");i.innerHTML="playlists"===e?'<button class="icon-btn" data-action="openCreatePlaylistModal"><i class="fas fa-plus"></i></button>':"";const l=document.getElementById("sub-view-content");l.innerHTML=`<div class="search-bar"><input type="text" class="search-input" placeholder="Search in ${a[e]}"></div>`;const n={playlists:this.renderPlaylistsView,playlistDetail:this.renderPlaylistDetailView,artists:this.renderArtistsView,albums:this.renderAlbumsView,songs:this.renderSongsView};n[e]&&n[e].call(this,l,t)},UI.renderPlaylistsView=function(e){const t=document.createDocumentFragment(),a=document.createElement("div");a.className="playlist-item",a.dataset.action="showSubView",a.dataset.type="playlistDetail",a.dataset.id="favorites",a.innerHTML=`<div class="playlist-item-artwork" id="favorite-playlist-artwork"><i class="fas fa-star"></i></div><div class="playlist-info"><div class="playlist-title">Favorite Songs</div></div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`,t.appendChild(a),app.library.playlists.forEach(e=>t.appendChild(this.createPlaylistItem(e))),app.library.playlists.length>0||e.querySelector(".playlist-item")||(e.innerHTML+='<p class="empty-state">No playlists. Create one with the + button.</p>'),e.appendChild(t)},UI.renderPlaylistDetailView=function(e,t){let a=[];"favorites"===t?a=app.library.songs.filter(e=>e.isFavorite):app.library.playlists.find(e=>e.id===parseInt(t))?.songs.forEach(e=>{const t=app.library.songs.find(t=>t.id===e);t&&a.push(t)}),e.innerHTML+=`<div class="action-buttons"><button class="action-btn" data-action="playPlaylist" data-id="${t}">Play</button><button class="action-btn">Shuffle</button></div>`,0===a.length?e.innerHTML+='<p class="empty-state">No songs in this playlist.</p>':a.forEach(t=>e.appendChild(this.createSongListItem(t)))},UI.renderArtistsView=function(e){const t=Object.keys(app.library.artists).sort();if(0===t.length)return void(e.innerHTML+='<p class="empty-state">No artists found.</p>');t.forEach(t=>e.appendChild(this.createArtistListItem(t,app.library.artists[t][0].artwork)))},UI.renderAlbumsView=function(e){const t=Object.keys(app.library.albums).sort();if(0===t.length)return void(e.innerHTML+='<p class="empty-state">No albums found.</p>');e.innerHTML+=`<div class="action-buttons"><button class="action-btn">Play</button><button class="action-btn">Shuffle</button></div>`;const a=document.createElement("div");a.className="grid",t.forEach(e=>a.appendChild(this.createGridItem(app.library.albums[e],"playAlbum",e))),e.appendChild(a)},UI.renderSongsView=function(e){const t=app.library.songs;if(0===t.length)return void(e.innerHTML+='<p class="empty-state">No songs found.</p>');e.innerHTML+=`<div class="action-buttons"><button class="action-btn">Play</button><button class="action-btn">Shuffle</button></div>`,t.forEach(t=>e.appendChild(this.createSongListItem(t)))},UI.createListItem=function(e){const t=document.createElement("div");return t.className="list-item",t.dataset.action="showSubView",t.dataset.type=e.type,t.innerHTML=`<div class="list-icon"><i class="fas ${e.icon}"></i></div><div class="list-text">${e.text}</div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`,t},UI.createPlaylistItem=function(e){const t=document.createElement("div");t.className="playlist-item",t.dataset.action="showSubView",t.dataset.type="playlistDetail",t.dataset.id=e.id;const a=e.artwork?`<img src="${e.artwork}"/>`:`<div style="width:100%;height:100%;background:linear-gradient(45deg, #ff9a9e, #fad0c4)"></div>`;return t.innerHTML=`<div class="playlist-item-artwork">${a}</div><div class="playlist-info"><div class="playlist-title">${e.name}</div><div class="playlist-subtitle">${e.songs.length} songs</div></div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`,t},UI.createArtistListItem=function(e,t){const a=document.createElement("div");return a.className="list-item",a.innerHTML=`<div class="list-icon"><img src="${t}" style="width:40px; height:40px; border-radius:50%; object-fit: cover;"></div><div class="list-text">${e}</div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`,a},UI.createGridItem=function(e,t,a){const i=document.createElement("div");if(i.className="grid-item",i.dataset.action=t,"playSong"===t)i.dataset.id=e.id,i.innerHTML=`<img src="${e.artwork}" alt="${e.album}"><div class="grid-item-title">${e.title}</div><div class="grid-item-subtitle">${e.artist}</div>`;else if("playAlbum"===t){i.dataset.album=a,i.innerHTML=`<img src="${e.artwork}" alt="${a}"><div class="grid-item-title">${a}</div><div class="grid-item-subtitle">${e.artist}</div>`}return i},UI.createSongListItem=function(e){const t=document.createElement("div");return t.className="song-list-item",t.dataset.action="playSong",t.dataset.id=e.id,t.innerHTML=`<img class="song-list-artwork" src="${e.artwork}"><div class="song-list-info-container"><div class="song-list-info"><span class="song-list-title">${e.title}<span class="explicit-tag">E</span></span><span class="song-list-artist">${e.artist}</span></div><i class="fas fa-ellipsis-h song-menu-btn"></i></div>`,t},UI.handleSearch=function(e){const t=e.target.value.toLowerCase(),a=document.getElementById("search-results-container"),i=document.getElementById("search-categories");if(a.classList.toggle("hidden",t.length<2),i.classList.toggle("hidden",t.length>=2),t.length<2)return;a.innerHTML="";const l=app.library.songs.filter(e=>e.title.toLowerCase().includes(t)||e.artist.toLowerCase().includes(t)||e.album.toLowerCase().includes(t));if(0===l.length)return void(a.innerHTML='<p class="empty-state">No Results</p>');l.forEach(e=>a.appendChild(this.createSongListItem(e)))};
+        renderLibraryView() {
+            const container = document.getElementById('library-content');
+            container.innerHTML = `<div id="library-nav-list"></div><div class="section-header"><h2>Recently Added</h2></div><div class="grid" id="library-recent-grid"></div>`;
+            const navList = container.querySelector('#library-nav-list');
+            [
+                { type: 'playlists', icon: 'fa-list-music', text: 'Playlists' },
+                { type: 'artists', icon: 'fa-microphone-alt', text: 'Artists' },
+                { type: 'albums', icon: 'fa-compact-disc', text: 'Albums' },
+                { type: 'songs', icon: 'fa-music', text: 'Songs' },
+            ].forEach(item => navList.appendChild(this.createListItem(item)));
+            const recentGrid = container.querySelector('#library-recent-grid');
+            const recentSongs = [...app.library.songs].sort((a,b)=>b.addedAt-a.addedAt).slice(0,4);
+            recentGrid.innerHTML = '';
+            const sectionHeader = container.querySelector('.section-header');
+            if (recentSongs.length > 0) {
+                sectionHeader.classList.remove('hidden');
+                recentSongs.forEach(song => recentGrid.appendChild(this.createGridItem(song, 'playSong')));
+            } else {
+                sectionHeader.classList.add('hidden');
+            }
+        },
+        renderSubView(type, id) {
+            const titleMap = { playlists: 'Playlists', artists: 'Artists', albums: 'Albums', songs: 'Songs', playlistDetail: 'Playlist' };
+            const backTextMap = { playlists: 'Library', artists: 'Library', albums: 'Library', songs: 'Library', playlistDetail: 'Playlists' };
+            
+            if("playlistDetail"===type) {
+                const playlist = id === 'favorites' ? {name: 'Favorite Songs'} : app.library.playlists.find(p => p.id === parseInt(id));
+                titleMap.playlistDetail = playlist.name;
+            }
+            document.getElementById('sub-view-title').textContent = titleMap[type];
+            document.querySelector('#sub-view .back-btn span').textContent = backTextMap[type];
 
+            const actionsContainer = document.getElementById('sub-view-actions');
+            actionsContainer.innerHTML = (type === 'playlists') ? '<button class="icon-btn" data-action="openCreatePlaylistModal"><i class="fas fa-plus"></i></button>' : '';
+            
+            const contentContainer = document.getElementById('sub-view-content');
+            contentContainer.innerHTML = `<div class="search-bar"><input type="text" class="search-input" placeholder="Search in ${titleMap[type]}"></div>`;
+            
+            const rendererMap = {
+                'playlists': this.renderPlaylistsView, 'playlistDetail': this.renderPlaylistDetailView,
+                'artists': this.renderArtistsView, 'albums': this.renderAlbumsView, 'songs': this.renderSongsView,
+            };
+            if(rendererMap[type]) rendererMap[type].call(this, contentContainer, id);
+        },
+        renderPlaylistsView(container) {
+             const frag = document.createDocumentFragment();
+             const fav = document.createElement('div');
+             fav.className = 'playlist-item';
+             fav.dataset.action = "showSubView"; fav.dataset.type = "playlistDetail"; fav.dataset.id = "favorites";
+             fav.innerHTML = `<div class="playlist-item-artwork" id="favorite-playlist-artwork"><i class="fas fa-star"></i></div><div class="playlist-info"><div class="playlist-title">Favorite Songs</div><div class="playlist-subtitle">${app.library.songs.filter(s=>s.isFavorite).length} songs</div></div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`;
+             frag.appendChild(fav);
+             app.library.playlists.forEach(p => frag.appendChild(this.createPlaylistItem(p)));
+             if (app.library.playlists.length === 0) { container.innerHTML += '<p class="empty-state">No playlists. Create one with the + button.</p>'; }
+             container.appendChild(frag);
+        },
+        renderPlaylistDetailView(container, id) {
+            let songs = [];
+            if (id === 'favorites') { songs = app.library.songs.filter(s => s.isFavorite); } 
+            else { const playlist = app.library.playlists.find(p => p.id === parseInt(id)); if(playlist) songs = app.library.songs.filter(s => playlist.songs.includes(s.id)); }
+            container.innerHTML += `<div class="action-buttons"><button class="action-btn" data-action="playPlaylist" data-id="${id}">Play</button><button class="action-btn" data-action="shufflePlaylist" data-id="${id}">Shuffle</button></div>`;
+            if (songs.length === 0) { container.innerHTML += '<p class="empty-state">No songs in this playlist.</p>'; } 
+            else { songs.forEach(song => container.appendChild(this.createSongListItem(song))); }
+        },
+        renderArtistsView(container) { /* ... unchanged ... */ },
+        renderAlbumsView(container) { /* ... unchanged ... */ },
+        renderSongsView(container) { /* ... unchanged ... */ },
+        createListItem(item) { /* ... unchanged ... */ },
+        createPlaylistItem(playlist) { /* ... unchanged ... */ },
+        createArtistListItem(name, artwork) { /* ... unchanged ... */ },
+        createGridItem(item, action, name) { /* ... unchanged ... */ },
+        createSongListItem(song) { /* ... unchanged ... */ },
+        handleSearch(e) { /* ... unchanged ... */ },
+    };
+    UI.renderArtistsView=function(e){const t=Object.keys(app.library.artists).sort();if(0===t.length)return void(e.innerHTML+='<p class="empty-state">No artists found.</p>');t.forEach(t=>e.appendChild(this.createArtistListItem(t,app.library.artists[t][0].artwork)))},UI.renderAlbumsView=function(e){const t=Object.keys(app.library.albums).sort();if(0===t.length)return void(e.innerHTML+='<p class="empty-state">No albums found.</p>');e.innerHTML+=`<div class="action-buttons"><button class="action-btn" data-album-name="all" data-action="playAlbum">Play</button><button class="action-btn">Shuffle</button></div>`;const a=document.createElement("div");a.className="grid",t.forEach(e=>a.appendChild(this.createGridItem(app.library.albums[e],"playAlbum",e))),e.appendChild(a)},UI.renderSongsView=function(e){const t=app.library.songs;if(0===t.length)return void(e.innerHTML+='<p class="empty-state">No songs found.</p>');e.innerHTML+=`<div class="action-buttons"><button class="action-btn" data-action="playAlbum" data-album-name="all-songs">Play</button><button class="action-btn">Shuffle</button></div>`,t.forEach(t=>e.appendChild(this.createSongListItem(t)))},UI.createListItem=function(e){const t=document.createElement("div");return t.className="list-item",t.dataset.action="showSubView",t.dataset.type=e.type,t.innerHTML=`<div class="list-icon"><i class="fas ${e.icon}"></i></div><div class="list-text">${e.text}</div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`,t},UI.createPlaylistItem=function(e){const t=document.createElement("div");t.className="playlist-item",t.dataset.action="showSubView",t.dataset.type="playlistDetail",t.dataset.id=e.id;const a=e.artwork?`<img src="${e.artwork}"/>`:`<div style="width:100%;height:100%;background:linear-gradient(45deg, #ff9a9e, #fad0c4)"></div>`;return t.innerHTML=`<div class="playlist-item-artwork">${a}</div><div class="playlist-info"><div class="playlist-title">${e.name}</div><div class="playlist-subtitle">${e.songs.length} songs</div></div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`,t},UI.createArtistListItem=function(e,t){const a=document.createElement("div");return a.className="list-item",a.innerHTML=`<div class="list-icon"><img src="${t}" style="width:40px; height:40px; border-radius:50%; object-fit: cover;"></div><div class="list-text">${e}</div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`,a},UI.createGridItem=function(e,t,a){const i=document.createElement("div");if(i.className="grid-item",i.dataset.action=t,"playSong"===t)i.dataset.id=e.id,i.innerHTML=`<img src="${e.artwork}" alt="${e.album}"><div class="grid-item-title">${e.title}</div><div class="grid-item-subtitle">${e.artist}</div>`;else if("playAlbum"===t){i.dataset.album=a,i.innerHTML=`<img src="${e.artwork}" alt="${a}"><div class="grid-item-title">${a}</div><div class="grid-item-subtitle">${e.artist}</div>`}return i},UI.createSongListItem=function(e){const t=document.createElement("div");return t.className="song-list-item",t.dataset.action="playSong",t.dataset.id=e.id,t.innerHTML=`<img class="song-list-artwork" src="${e.artwork}"><div class="song-list-info-container"><div class="song-list-info"><span class="song-list-title">${e.title}<span class="explicit-tag">E</span></span><span class="song-list-artist">${e.artist}</span></div><i class="fas fa-ellipsis-h song-menu-btn"></i></div>`,t},UI.handleSearch=function(e){const t=e.target.value.toLowerCase(),a=document.getElementById("search-results-container"),i=document.getElementById("search-categories");if(a.classList.toggle("hidden",t.length<2),i.classList.toggle("hidden",t.length>=2),t.length<2)return;a.innerHTML="";const l=app.library.songs.filter(e=>e.title.toLowerCase().includes(t)||e.artist.toLowerCase().includes(t)||e.album.toLowerCase().includes(t));if(0===l.length)return void(a.innerHTML='<p class="empty-state">No Results</p>');l.forEach(e=>a.appendChild(this.createSongListItem(e)))};
+    
     init();
 });
   </script>
