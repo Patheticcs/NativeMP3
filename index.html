@@ -98,6 +98,15 @@
     .grid-item img { width: 100%; aspect-ratio: 1/1; border-radius: 6px; object-fit: cover; margin-bottom: 5px; background: #1c1c1e; }
     .grid-item-title { font-size: 14px; line-height: 1.2; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .grid-item-subtitle { font-size: 14px; color: var(--system-gray); }
+    
+    /* Playlists View */
+    .playlist-item { display: flex; align-items: center; padding: 8px 20px; border-bottom: 1px solid var(--border-color); cursor: pointer; }
+    .playlist-item-artwork { width: 54px; height: 54px; border-radius: 4px; object-fit: cover; margin-right: 15px; display: flex; align-items: center; justify-content: center; background: #1c1c1e; }
+    #favorite-playlist-artwork { background: linear-gradient(135deg, #ff2d55, #ff5e3a); }
+    #favorite-playlist-artwork .fa-star { font-size: 28px; }
+    .playlist-info { flex: 1; }
+    .playlist-title { font-size: 17px; }
+    .playlist-subtitle { font-size: 14px; color: var(--system-gray); }
 
     /* Search Page */
     .search-category-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 10px 20px; }
@@ -242,7 +251,7 @@
   </div>
 
   <div class="now-playing-bar" id="now-playing-bar" data-action="showFullPlayer">
-    <img id="np-artwork" class="now-playing-artwork" src="" alt=""><div id="np-title" class="now-playing-info"></div>
+    <img id="np-artwork" class="now-playing-artwork" src="" alt=""><div id="np-title" class="now-playing-info">Not Playing</div>
     <div class="now-playing-controls">
       <button class="now-playing-btn" data-action="togglePlay"><i id="np-play-icon" class="fas fa-play"></i></button>
       <button class="now-playing-btn" data-action="nextSong"><i class="fas fa-forward-step"></i></button>
@@ -252,7 +261,7 @@
   <div class="full-player" id="full-player">
     <div class="player-header"><div class="player-minimize-handle"></div></div>
     <img id="player-artwork" class="player-artwork" src="" alt=""><div class="player-info-container">
-        <div class="player-details"><div id="player-title" class="title"></div><div id="player-artist" class="artist"></div></div>
+        <div class="player-details"><div id="player-title" class="title">Not Playing</div><div id="player-artist" class="artist"></div></div>
         <button class="icon-btn"><i class="fas fa-ellipsis-h"></i></button></div>
     <div class="progress-container" data-action="seek"><div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div><div class="progress-times"><span id="current-time">0:00</span><span id="total-time">0:00</span></div></div>
     <div class="player-controls">
@@ -343,6 +352,7 @@
             'hideFullPlayer': UI.hideFullPlayer,
             'seek': Player.seek,
             'setVolume': Player.setVolume,
+            'createPlaylist': Library.createPlaylist,
         };
         
         if (actions[action]) actions[action](e);
@@ -350,7 +360,7 @@
       
     const DB = {
         init: () => new Promise(resolve => {
-            const request = indexedDB.open("AppleMusicDB_v7", 1);
+            const request = indexedDB.open("AppleMusicDB_v8_Final", 1);
             request.onupgradeneeded = e => {
                 const db = e.target.result;
                 if (!db.objectStoreNames.contains("songs")) db.createObjectStore("songs", { keyPath: "id", autoIncrement: true });
@@ -378,7 +388,15 @@
                 if (!app.library.albums[album]) app.library.albums[album] = { songs: [], artwork: song.artwork, artist: artist };
                 app.library.albums[album].songs.push(song);
             });
-        }
+        },
+        async createPlaylist() {
+            const name = prompt("New Playlist Name:");
+            if(name?.trim()) {
+                await DB.add('playlists', { name, songs: [], createdAt: Date.now() });
+                await this.loadAllData();
+                UI.renderSubView('playlists');
+            }
+        },
     };
     
     const Upload = {
@@ -389,7 +407,7 @@
         closeModal: () => {
             DOM.uploadSheet.classList.remove('active');
             DOM.modalOverlay.classList.remove('active');
-            setTimeout(() => this.resetForm(), 400); // Reset form after transition
+            setTimeout(() => this.resetForm(), 400);
         },
         resetForm() {
             document.getElementById('upload-form').reset();
@@ -449,23 +467,15 @@
     class SwipeHandler {
         constructor() {
             this.touch = { startY: 0, currentY: 0, isDragging: false, target: null, onDismiss: null };
-            this.handleTouchStart = this.handleTouchStart.bind(this);
-            this.handleTouchMove = this.handleTouchMove.bind(this);
-            this.handleTouchEnd = this.handleTouchEnd.bind(this);
         }
-
         handleTouchStart(e, targetElement, onDismissCallback) {
-            if (e.target.closest('.progress-container, .volume-container, .player-controls, .form-group')) return;
+            if (e.target.closest('.progress-container, .volume-container, .player-controls, .form-group, button')) return;
             this.touch = {
-                isDragging: true,
-                target: targetElement,
-                onDismiss: onDismissCallback,
-                startY: e.touches[0].clientY,
-                currentY: e.touches[0].clientY,
+                isDragging: true, target: targetElement, onDismiss: onDismissCallback,
+                startY: e.touches[0].clientY, currentY: e.touches[0].clientY,
             };
             this.touch.target.classList.add('no-transition');
         }
-
         handleTouchMove(e) {
             if (!this.touch.isDragging) return;
             this.touch.currentY = e.touches[0].clientY;
@@ -475,19 +485,15 @@
                 this.touch.target.style.transform = `translateY(${deltaY}px)`;
             }
         }
-
         handleTouchEnd() {
             if (!this.touch.isDragging) return;
-            this.touch.isDragging = false;
             let deltaY = this.touch.currentY - this.touch.startY;
             this.touch.target.classList.remove('no-transition');
 
-            if (deltaY > 100) { // Dismiss threshold
-                this.touch.onDismiss();
-            } else {
-                this.touch.target.style.transform = '';
-            }
-            this.touch = { startY: 0, currentY: 0, isDragging: false, target: null, onDismiss: null };
+            if (deltaY > 100) { this.touch.onDismiss(); } 
+            else { this.touch.target.style.transform = ''; }
+            
+            this.touch.isDragging = false;
         }
     }
 
@@ -630,16 +636,22 @@
             const recentGrid = container.querySelector('#library-recent-grid');
             const recentSongs = [...app.library.songs].sort((a,b)=>b.addedAt-a.addedAt).slice(0,4);
             recentGrid.innerHTML = '';
+            const sectionHeader = container.querySelector('.section-header');
             if (recentSongs.length > 0) {
-                container.querySelector('.section-header').classList.remove('hidden');
+                sectionHeader.classList.remove('hidden');
                 recentSongs.forEach(song => recentGrid.appendChild(this.createGridItem(song, 'playSong')));
             } else {
-                container.querySelector('.section-header').classList.add('hidden');
+                sectionHeader.classList.add('hidden');
             }
         },
         renderSubView(type) {
             const titleMap = { playlists: 'Playlists', artists: 'Artists', albums: 'Albums', songs: 'Songs' };
             document.getElementById('sub-view-title').textContent = titleMap[type];
+            const actionsContainer = document.getElementById('sub-view-actions');
+            actionsContainer.innerHTML = '';
+            if (type === 'playlists') {
+                actionsContainer.innerHTML = '<button class="icon-btn" data-action="createPlaylist"><i class="fas fa-plus"></i></button>';
+            }
             const contentContainer = document.getElementById('sub-view-content');
             contentContainer.innerHTML = `<div class="search-bar"><input type="text" class="search-input" placeholder="Search in ${titleMap[type]}"></div>`;
             const renderer = {
@@ -651,7 +663,17 @@
             if(renderer[type]) renderer[type].call(this, contentContainer);
         },
         renderPlaylistsView(container) {
-             container.innerHTML += '<p class="empty-state">Playlists will be available in a future update.</p>';
+             const frag = document.createDocumentFragment();
+             const fav = document.createElement('div');
+             fav.className = 'playlist-item';
+             fav.innerHTML = `<div class="playlist-item-artwork" id="favorite-playlist-artwork"><i class="fas fa-star"></i></div><div class="playlist-info"><div class="playlist-title">Favorite Songs</div></div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`;
+             frag.appendChild(fav);
+
+             app.library.playlists.forEach(p => frag.appendChild(this.createPlaylistItem(p)));
+             if (app.library.playlists.length === 0) {
+                container.innerHTML += '<p class="empty-state">No playlists. Create one with the + button.</p>';
+             }
+             container.appendChild(frag);
         },
         renderArtistsView(container) {
             const artists = Object.keys(app.library.artists).sort();
@@ -679,6 +701,12 @@
             div.dataset.action = 'showSubView';
             div.dataset.type = item.type;
             div.innerHTML = `<div class="list-icon"><i class="fas ${item.icon}"></i></div><div class="list-text">${item.text}</div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`;
+            return div;
+        },
+        createPlaylistItem(playlist) {
+            const div = document.createElement('div');
+            div.className = 'playlist-item';
+            div.innerHTML = `<div class="playlist-item-artwork"><img src="https://via.placeholder.com/54?text=${playlist.name.charAt(0)}" /></div><div class="playlist-info"><div class="playlist-title">${playlist.name}</div><div class="playlist-subtitle">${playlist.songs.length} songs</div></div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`;
             return div;
         },
         createArtistListItem(name, artwork) {
