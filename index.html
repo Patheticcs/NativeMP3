@@ -41,19 +41,33 @@
     /* Header Styles */
     .header { padding: var(--safe-area-top) 20px 10px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; }
     .header.large-title h1 { font-size: 34px; font-weight: 700; }
-    .header-profile-icon { width: 32px; height: 32px; background: var(--fill-tertiary); color: var(--system-pink); border-radius: 50%; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+    .header-profile-icon {
+        width: 32px; height: 32px; background: var(--fill-tertiary); color: var(--system-pink);
+        border-radius: 50%; font-size: 16px; display: flex; align-items: center; justify-content: center;
+    }
     .header-with-back { padding: var(--safe-area-top) 10px 10px; }
-    .header-with-back .back-btn { font-size: 17px; color: var(--system-pink); background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 8px; }
+    .header-with-back .back-btn {
+        font-size: 17px; color: var(--system-pink); background: none; border: none; cursor: pointer;
+        display: flex; align-items: center; gap: 4px; padding: 8px;
+    }
     .header-with-back h1 { font-size: 17px; font-weight: 600; flex: 1; text-align: center; margin: 0 10px; }
     .header-actions { display: flex; gap: 15px; min-width: 40px; justify-content: flex-end; align-items: center; }
     .header-actions .icon-btn, .round-btn { background: none; border: none; color: var(--system-pink); font-size: 22px; cursor: pointer; }
-    .round-btn { background: var(--fill-tertiary); width: 32px; height: 32px; border-radius: 50%; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+    .round-btn {
+        background: var(--fill-tertiary); width: 32px; height: 32px; border-radius: 50%;
+        font-size: 14px; display: flex; align-items: center; justify-content: center;
+    }
 
     /* Main Content & Common Elements */
     .main-content { flex: 1; overflow-y: auto; scrollbar-width: none; padding-bottom: 130px; }
     .main-content::-webkit-scrollbar { display: none; }
     .search-bar { padding: 10px 20px; position: relative; }
-    .search-input { width: 100%; padding: 8px 40px 8px 35px; background-color: var(--fill-tertiary); border: none; border-radius: 10px; color: #fff; font-size: 17px; background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%238e8e93' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: 10px center; }
+    .search-input {
+      width: 100%; padding: 8px 40px 8px 35px; background-color: var(--fill-tertiary); border: none;
+      border-radius: 10px; color: #fff; font-size: 17px;
+      background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%238e8e93' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: 10px center;
+    }
     .search-input-mic { position: absolute; right: 30px; top: 50%; transform: translateY(-50%); color: var(--system-gray); font-size: 16px; }
     .search-input::placeholder { color: var(--system-gray); }
     .content-section { margin-bottom: 20px; }
@@ -62,38 +76,34 @@
     .action-buttons { display: flex; gap: 10px; padding: 10px 20px; }
     .action-btn { flex: 1; background: var(--fill-tertiary); border: none; border-radius: 8px; color: #fff; padding: 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
 
-    /* List Item Swipe Actions */
-    .swipe-container { position: relative; overflow: hidden; background: #000; }
-    .swipe-content { transform: translateX(0); transition: transform 0.3s ease; cursor: pointer; background: #000; z-index: 2; position: relative; }
-    .swipe-actions { position: absolute; top: 0; right: 0; height: 100%; display: flex; z-index: 1; }
-    .swipe-action-btn { height: 100%; padding: 0 25px; color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 17px; }
-    .swipe-action-btn.rename { background-color: var(--system-gray); }
-    .swipe-action-btn.delete { background-color: var(--system-red); }
-    
     /* List View Styles */
-    .list-item { display: flex; align-items: center; padding: 11px 20px; border-bottom: 1px solid var(--border-color); }
+    .list-item { display: flex; align-items: center; padding: 11px 20px; border-bottom: 1px solid var(--border-color); cursor: pointer; }
     .list-item:first-child { border-top: 1px solid var(--border-color); }
     .list-icon { color: var(--system-pink); width: 30px; font-size: 22px; margin-right: 15px; text-align: center; }
     .list-text { flex: 1; font-size: 17px; }
     .list-arrow { color: var(--system-gray); font-size: 14px; }
-    .song-list-item { display: flex; align-items: center; padding: 0 20px; }
+    .song-list-item { display: flex; align-items: center; padding: 0 20px; cursor: pointer; }
     .song-list-artwork { width: 44px; height: 44px; border-radius: 4px; object-fit: cover; margin-right: 12px; background: var(--system-gray-6);}
     .song-list-info { flex: 1; display: flex; flex-direction: column; }
     .song-list-info-container { flex: 1; display: flex; align-items: center; border-bottom: 1px solid var(--border-color); padding: 8px 0; }
     .song-list-item:last-child .song-list-info-container { border-bottom: none; }
     .song-list-title { font-size: 17px; display: flex; align-items: center; }
     .song-list-artist { font-size: 14px; color: var(--system-gray); }
+    .explicit-tag { font-size: 9px; border: 1px solid var(--system-gray); color: var(--system-gray); border-radius: 2px; padding: 0 2px; margin-left: 6px; }
     .song-menu-btn { color: var(--system-gray); font-size: 16px; padding: 10px; }
 
     /* Grid & Carousel */
     .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 0 20px; }
+    .grid-item { cursor: pointer; }
     .grid-item img { width: 100%; aspect-ratio: 1/1; border-radius: 6px; object-fit: cover; margin-bottom: 5px; background: #1c1c1e; }
     .grid-item-title { font-size: 14px; line-height: 1.2; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .grid-item-subtitle { font-size: 14px; color: var(--system-gray); }
     
     /* Playlists View */
-    .playlist-item { display: flex; align-items: center; padding: 8px 20px; border-bottom: 1px solid var(--border-color); }
+    .playlist-item { display: flex; align-items: center; padding: 8px 20px; border-bottom: 1px solid var(--border-color); cursor: pointer; }
     .playlist-item-artwork { width: 54px; height: 54px; border-radius: 4px; object-fit: cover; margin-right: 15px; display: flex; align-items: center; justify-content: center; background: #1c1c1e; }
+    #favorite-playlist-artwork { background: linear-gradient(135deg, #ff2d55, #ff5e3a); }
+    #favorite-playlist-artwork .fa-star { font-size: 28px; }
     .playlist-info { flex: 1; }
     .playlist-title { font-size: 17px; }
     .playlist-subtitle { font-size: 14px; color: var(--system-gray); }
@@ -108,14 +118,23 @@
     .category-item[data-color="blue"]::before { background-color: #007aff; }
     .category-item .category-title { position: absolute; bottom: 12px; left: 12px; font-size: 16px; font-weight: 600; color: #fff; }
 
-    /* Tab Bar & Now Playing Bar */
-    .tab-bar, .now-playing-bar { position: fixed; left: 0; right: 0; background: rgba(28, 28, 30, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); z-index: 500; }
-    .tab-bar { bottom: 0; display: flex; padding-top: 8px; padding-bottom: var(--safe-area-bottom); border-top: 0.5px solid rgba(255, 255, 255, 0.2); }
+    /* Tab Bar */
+    .tab-bar {
+      position: fixed; bottom: 0; left: 0; right: 0; background: rgba(28, 28, 30, 0.95);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: flex;
+      padding-top: 8px; padding-bottom: var(--safe-area-bottom); border-top: 0.5px solid rgba(255, 255, 255, 0.2); z-index: 500;
+    }
     .tab-item { flex: 1; display: flex; flex-direction: column; align-items: center; cursor: pointer; color: var(--system-gray); }
     .tab-item.active { color: var(--system-pink); }
     .tab-icon { font-size: 22px; margin-bottom: 2px; }
     .tab-label { font-size: 10px; font-weight: 500; }
-    .now-playing-bar { bottom: calc(50px + var(--safe-area-bottom)); left: 10px; right: 10px; padding: 8px; border-radius: 12px; display: none; align-items: center; cursor: pointer; z-index: 600; transform: translateY(200%); transition: transform 0.4s ease-in-out; }
+
+    /* Now Playing Bar */
+    .now-playing-bar {
+      position: fixed; bottom: calc(50px + var(--safe-area-bottom)); left: 10px; right: 10px;
+      background: #2c2c2e; padding: 8px; border-radius: 12px; display: none; align-items: center;
+      cursor: pointer; z-index: 600; transform: translateY(200%); transition: transform 0.4s ease-in-out;
+    }
     .now-playing-bar.active { display: flex; transform: translateY(0); }
     .now-playing-artwork { width: 44px; height: 44px; border-radius: 4px; object-fit: cover; margin-right: 12px; background: #1c1c1e; }
     .now-playing-info { flex: 1; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -123,7 +142,14 @@
     .now-playing-btn { background: none; border: none; color: #fff; font-size: 22px; cursor: pointer; }
 
     /* Full Player */
-    .full-player { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000; display: flex; flex-direction: column; padding: var(--safe-area-top) 25px var(--safe-area-bottom); background-image: linear-gradient(to bottom, #222 0%, #000 70%); transform: translateY(100%); transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1); visibility: hidden; }
+    .full-player {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000;
+      display: flex; flex-direction: column; padding: var(--safe-area-top) 25px var(--safe-area-bottom);
+      background-image: linear-gradient(to bottom, #222 0%, #000 70%);
+      transform: translateY(100%);
+      transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+      visibility: hidden;
+    }
     .full-player.active { transform: translateY(0); visibility: visible; }
     .full-player.no-transition { transition: none; }
     .player-header { display: flex; justify-content: center; position: relative; padding: 15px 0; touch-action: none; }
@@ -144,9 +170,17 @@
     .volume-slider { flex: 1; height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px; cursor: pointer; }
 
     /* Modal (Bottom Sheet) */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1100; opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s; }
+    .modal-overlay {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1100;
+        opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s;
+    }
     .modal-overlay.active { opacity: 1; visibility: visible; }
-    .bottom-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: #1c1c1e; z-index: 1200; border-radius: 20px 20px 0 0; padding: 15px 20px calc(20px + var(--safe-area-bottom)); transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1); touch-action: none; }
+    .bottom-sheet {
+        position: fixed; bottom: 0; left: 0; right: 0; background: #1c1c1e; z-index: 1200;
+        border-radius: 20px 20px 0 0; padding: 15px 20px calc(20px + var(--safe-area-bottom));
+        transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+        touch-action: none;
+    }
     .bottom-sheet.active { transform: translateY(0); }
     .bottom-sheet.no-transition { transition: none; }
     .sheet-header { text-align: center; margin-bottom: 20px; }
@@ -159,14 +193,13 @@
     .form-group label { color: var(--system-gray); font-size: 14px; margin-bottom: 8px; text-transform: uppercase; }
     .form-group input, .form-group button { background: var(--fill-tertiary); border: none; border-radius: 8px; padding: 12px; font-size: 17px; color: #fff; }
     .form-group button { background: var(--system-pink); cursor: pointer; font-weight: 600; }
-    #add-to-playlist-section { max-height: 150px; overflow-y: auto; background: var(--fill-tertiary); border-radius: 8px; }
-    .playlist-select-item { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 10px; cursor: pointer; }
-    .playlist-select-item:last-child { border-bottom: none; }
-    .playlist-select-item input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--system-pink); }
-    
+
     /* Utility */
     .hidden { display: none; }
-    .loading-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; display: none; align-items: center; justify-content: center; }
+    .loading-overlay {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999;
+        display: none; align-items: center; justify-content: center;
+    }
     .loading-overlay.active { display: flex; }
     .spinner { border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid #fff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -182,7 +215,7 @@
     </div>
     <div id="sub-view" class="view">
         <div class="header header-with-back">
-            <button class="back-btn" data-action="goBack"><i class="fas fa-chevron-left"></i> <span>Library</span></button>
+            <button class="back-btn" data-action="goBack"><i class="fas fa-chevron-left"></i> <span id="back-btn-text">Library</span></button>
             <h1 id="sub-view-title"></h1>
             <div class="header-actions" id="sub-view-actions"></div>
         </div>
@@ -212,7 +245,6 @@
         <div class="form-group"><label for="song-title-input">TITLE</label><input type="text" id="song-title-input" required></div>
         <div class="form-group"><label for="song-artist-input">ARTIST</label><input type="text" id="song-artist-input" required></div>
         <div class="form-group"><label for="song-album-input">ALBUM</label><input type="text" id="song-album-input" required></div>
-        <div class="form-group" id="add-to-playlist-section-container"><label>ADD TO PLAYLISTS</label><div id="add-to-playlist-section"></div></div>
         <div class="form-group"><button type="button" data-action="triggerSongUpload">Select Song File (.mp3)</button><span id="song-file-name" style="color: var(--system-gray); font-size: 14px; margin-top: 8px; text-align: center;">No file selected.</span><input type="file" id="music-file-input" class="hidden" accept=".mp3"></div>
         <div class="form-group"><button type="button" data-action="submitUpload">Add Song</button></div>
     </form>
@@ -227,6 +259,7 @@
           <div class="form-group"><button type="button" data-action="submitCreatePlaylist">Create</button></div>
       </form>
   </div>
+
 
   <div class="now-playing-bar" id="now-playing-bar" data-action="showFullPlayer">
     <img id="np-artwork" class="now-playing-artwork" src="" alt=""><div id="np-title" class="now-playing-info">Not Playing</div>
@@ -263,6 +296,7 @@
 
     const app = {
         db: null,
+        navStack: [],
         nowPlaying: { id: null, queue: [], currentIndex: -1, isPlaying: false },
         library: { songs: [], playlists: [], artists: {}, albums: {} },
         uploadData: { songFile: null, artworkBase64: null },
@@ -297,23 +331,12 @@
         DOM.audio.addEventListener('loadedmetadata', Player.updateProgress);
         DOM.audio.addEventListener('ended', Player.nextSong);
         
-        const sheetSwipeHandler = new SwipeHandler();
-        DOM.fullPlayer.addEventListener('touchstart', e => sheetSwipeHandler.handleTouchStart(e, DOM.fullPlayer, UI.hideFullPlayer), { passive: true });
-        DOM.uploadSheet.addEventListener('touchstart', e => sheetSwipeHandler.handleTouchStart(e, DOM.uploadSheet, Upload.closeModal), { passive: true });
-        DOM.playlistSheet.addEventListener('touchstart', e => sheetSwipeHandler.handleTouchStart(e, DOM.playlistSheet, Playlist.closeModal), { passive: true });
-        
-        const itemSwipeHandler = new ItemSwipeHandler();
-        document.body.addEventListener('touchstart', e => itemSwipeHandler.handleTouchStart(e), { passive: true });
-        
-        document.body.addEventListener('touchmove', e => {
-            sheetSwipeHandler.handleTouchMove(e);
-            itemSwipeHandler.handleTouchMove(e);
-        }, { passive: false });
-        
-        document.body.addEventListener('touchend', e => {
-            sheetSwipeHandler.handleTouchEnd(e);
-            itemSwipeHandler.handleTouchEnd(e);
-        });
+        const swipeHandler = new SwipeHandler();
+        DOM.fullPlayer.addEventListener('touchstart', e => swipeHandler.handleTouchStart(e, DOM.fullPlayer, UI.hideFullPlayer), { passive: true });
+        DOM.uploadSheet.addEventListener('touchstart', e => swipeHandler.handleTouchStart(e, DOM.uploadSheet, Upload.closeModal), { passive: true });
+        DOM.playlistSheet.addEventListener('touchstart', e => swipeHandler.handleTouchStart(e, DOM.playlistSheet, Playlist.closeModal), { passive: true });
+        document.body.addEventListener('touchmove', e => swipeHandler.handleTouchMove(e), { passive: false });
+        document.body.addEventListener('touchend', e => swipeHandler.handleTouchEnd(e));
 
         document.getElementById('artwork-input').addEventListener('change', e => Upload.handleArtworkFileSelect(e));
         document.getElementById('music-file-input').addEventListener('change', e => Upload.handleSongFileSelect(e));
@@ -339,7 +362,7 @@
             'triggerPlaylistArtworkUpload': () => document.getElementById('playlist-artwork-input').click(),
             'submitUpload': Upload.submit,
             'submitCreatePlaylist': Playlist.submit,
-            'showSubView': () => UI.showSubView(target.dataset.type, target.dataset.id),
+            'showSubView': () => UI.showSubView(target.dataset.type),
             'playSong': () => Player.playSong(parseInt(target.dataset.id)),
             'playAlbum': () => Player.playAlbum(target.dataset.album),
             'togglePlay': Player.togglePlay,
@@ -349,26 +372,6 @@
             'hideFullPlayer': UI.hideFullPlayer,
             'seek': Player.seek,
             'setVolume': Player.setVolume,
-            'deleteItem': () => {
-                const type = target.dataset.type;
-                const id = target.dataset.id;
-                if (confirm(`Are you sure you want to delete this ${type}?`)) {
-                    Library.deleteItem(type, id).then(() => {
-                        UI.renderAll();
-                        if (DOM.subView.classList.contains('active')) {
-                           UI.renderSubView(DOM.subView.dataset.type);
-                        }
-                    });
-                }
-            },
-            'renamePlaylist': () => {
-                const id = parseInt(target.dataset.id);
-                const playlist = app.library.playlists.find(p => p.id === id);
-                const newName = prompt("Enter new playlist name", playlist.name);
-                if (newName && newName.trim() !== "") {
-                    Library.renamePlaylist(id, newName).then(() => UI.renderSubView('playlists'));
-                }
-            },
         };
         
         if (actions[action]) actions[action](e);
@@ -376,7 +379,7 @@
       
     const DB = {
         init: () => new Promise(resolve => {
-            const request = indexedDB.open("AppleMusicDB_v12_Final", 1);
+            const request = indexedDB.open("AppleMusicDB_v9_Final", 1);
             request.onupgradeneeded = e => {
                 const db = e.target.result;
                 if (!db.objectStoreNames.contains("songs")) db.createObjectStore("songs", { keyPath: "id", autoIncrement: true });
@@ -385,10 +388,7 @@
             request.onsuccess = e => { app.db = e.target.result; resolve(); };
         }),
         add: (store, item) => new Promise(res => app.db.transaction(store, 'readwrite').objectStore(store).add(item).onsuccess = res),
-        put: (store, item) => new Promise(res => app.db.transaction(store, 'readwrite').objectStore(store).put(item).onsuccess = res),
-        get: (store, id) => new Promise(res => app.db.transaction(store).objectStore(store).get(id).onsuccess = e => res(e.target.result)),
         getAll: store => new Promise(res => app.db.transaction(store).objectStore(store).getAll().onsuccess = e => res(e.target.result)),
-        delete: (store, id) => new Promise(res => app.db.transaction(store, 'readwrite').objectStore(store).delete(id).onsuccess = res),
     };
       
     const Library = {
@@ -396,60 +396,30 @@
             [app.library.songs, app.library.playlists] = await Promise.all([DB.getAll("songs"), DB.getAll("playlists")]);
             this.processLibrary();
         },
-        processLibrary() {
-            app.library.artists = {};
-            app.library.albums = {};
-            app.library.songs.forEach(song => {
-                const artist = song.artist || "Unknown Artist";
-                const album = song.album || "Unknown Album";
-                if (!app.library.artists[artist]) app.library.artists[artist] = [];
-                app.library.artists[artist].push(song);
-                if (!app.library.albums[album]) app.library.albums[album] = { songs: [], artwork: song.artwork, artist: artist };
-                app.library.albums[album].songs.push(song);
-            });
-        },
-        async deleteItem(type, id) {
-            if (type === 'song') {
-                await DB.delete('songs', parseInt(id));
-            } else if (type === 'playlist') {
-                await DB.delete('playlists', parseInt(id));
-            }
-            await this.loadAllData();
-        },
-        async renamePlaylist(id, newName) {
-            const playlist = await DB.get('playlists', id);
-            if (playlist) {
-                playlist.name = newName;
-                await DB.put('playlists', playlist);
-                await this.loadAllData();
-            }
-        },
+        processLibrary() { /* ... unchanged ... */ }
+    };
+    Library.processLibrary = function() {
+        app.library.artists = {}; app.library.albums = {};
+        app.library.songs.forEach(song => {
+            const artist = song.artist || "Unknown Artist", album = song.album || "Unknown Album";
+            if (!app.library.artists[artist]) app.library.artists[artist] = [];
+            app.library.artists[artist].push(song);
+            if (!app.library.albums[album]) app.library.albums[album] = { songs: [], artwork: song.artwork, artist: artist };
+            app.library.albums[album].songs.push(song);
+        });
     };
     
     const Upload = {
         openModal: () => {
-            const container = document.getElementById('add-to-playlist-section');
-            container.innerHTML = '';
-            if (app.library.playlists.length === 0) {
-                document.getElementById('add-to-playlist-section-container').style.display = 'none';
-            } else {
-                document.getElementById('add-to-playlist-section-container').style.display = 'flex';
-                app.library.playlists.forEach(p => {
-                    const item = document.createElement('div');
-                    item.className = 'playlist-select-item';
-                    item.innerHTML = `<input type="checkbox" id="p-select-${p.id}" data-playlist-id="${p.id}"><label for="p-select-${p.id}">${p.name}</label>`;
-                    container.appendChild(item);
-                });
-            }
             DOM.uploadSheet.classList.add('active');
             DOM.uploadModalOverlay.classList.add('active');
         },
         closeModal: () => {
             DOM.uploadSheet.classList.remove('active');
             DOM.uploadModalOverlay.classList.remove('active');
-            setTimeout(() => Upload.resetForm(), 400);
+            setTimeout(() => this.resetForm(), 400);
         },
-        resetForm:() => {
+        resetForm() {
             document.getElementById('upload-form').reset();
             document.getElementById('upload-artwork-preview').src = 'https://via.placeholder.com/150?text=Artwork';
             document.getElementById('song-file-name').textContent = 'No file selected.';
@@ -482,35 +452,21 @@
             reader.readAsDataURL(file);
         },
         async submit() {
+            const song = {
+                title: document.getElementById('song-title-input').value,
+                artist: document.getElementById('song-artist-input').value,
+                album: document.getElementById('song-album-input').value,
+                file: app.uploadData.songFile,
+                artwork: app.uploadData.artworkBase64 || 'https://via.placeholder.com/300?text=No+Art',
+                addedAt: Date.now(),
+            };
+            if (!song.title || !song.artist || !song.album || !song.file) { alert("Please fill all fields and select a song file."); return; }
             UI.showLoading(true);
-            const song = { title: document.getElementById('song-title-input').value, artist: document.getElementById('song-artist-input').value, album: document.getElementById('song-album-input').value, file: app.uploadData.songFile, artwork: app.uploadData.artworkBase64 || 'https://via.placeholder.com/300?text=No+Art', addedAt: Date.now() };
-            if (!song.title || !song.artist || !song.album || !song.file) { alert("Please fill all fields and select a song file."); UI.showLoading(false); return; }
-            
-            const tx = app.db.transaction(['songs', 'playlists'], 'readwrite');
-            const songsStore = tx.objectStore('songs');
-            const playlistsStore = tx.objectStore('playlists');
-            
-            const songAddRequest = songsStore.add(song);
-            
-            songAddRequest.onsuccess = async (event) => {
-                const songId = event.target.result;
-                const selectedPlaylists = Array.from(document.querySelectorAll('#add-to-playlist-section input:checked')).map(el => parseInt(el.dataset.playlistId));
-                
-                for (const pId of selectedPlaylists) {
-                    const playlist = await DB.get('playlists', pId);
-                    if (playlist) {
-                        playlist.songs.push(songId);
-                        await DB.put('playlists', playlist);
-                    }
-                }
-            };
-
-            tx.oncomplete = async () => {
-                await Library.loadAllData();
-                UI.renderAll();
-                UI.showLoading(false);
-                Upload.closeModal();
-            };
+            await DB.add('songs', song);
+            await Library.loadAllData();
+            UI.renderAll();
+            UI.showLoading(false);
+            this.closeModal();
         }
     };
     
@@ -522,9 +478,9 @@
         closeModal: () => {
             DOM.playlistSheet.classList.remove('active');
             DOM.playlistModalOverlay.classList.remove('active');
-            setTimeout(() => Playlist.resetForm(), 400);
+            setTimeout(() => this.resetForm(), 400);
         },
-        resetForm: () => {
+        resetForm() {
             document.getElementById('create-playlist-form').reset();
             document.getElementById('playlist-artwork-preview').src = 'https://via.placeholder.com/150?text=Artwork';
             app.playlistData = { artworkBase64: null };
@@ -532,34 +488,50 @@
         handleArtworkFileSelect(e) {
             const file = e.target.files[0]; if (!file) return;
             const reader = new FileReader();
-            reader.onload = re => { app.playlistData.artworkBase64 = re.target.result; document.getElementById('playlist-artwork-preview').src = app.playlistData.artworkBase64; };
+            reader.onload = re => {
+                app.playlistData.artworkBase64 = re.target.result;
+                document.getElementById('playlist-artwork-preview').src = app.playlistData.artworkBase64;
+            };
             reader.readAsDataURL(file);
         },
         async submit() {
             const name = document.getElementById('playlist-name-input').value;
             if (!name.trim()) { alert("Please enter a playlist name."); return; }
             UI.showLoading(true);
-            const playlist = { name, songs: [], artwork: app.playlistData.artworkBase64, createdAt: Date.now() };
+            const playlist = {
+                name,
+                songs: [],
+                artwork: app.playlistData.artworkBase64,
+                createdAt: Date.now(),
+            };
             await DB.add('playlists', playlist);
             await Library.loadAllData();
             UI.renderSubView('playlists');
             UI.showLoading(false);
-            Playlist.closeModal();
+            this.closeModal();
         }
     };
-    
+
     class SwipeHandler {
-        constructor() { this.touch = { startY: 0, currentY: 0, isDragging: false, target: null, onDismiss: null }; }
+        constructor() {
+            this.touch = { startY: 0, currentY: 0, isDragging: false, target: null, onDismiss: null };
+        }
         handleTouchStart(e, targetElement, onDismissCallback) {
-            if (e.target.closest('.progress-container, .volume-container, .player-controls, .form-group, button, .swipe-container')) return;
-            this.touch = { isDragging: true, target: targetElement, onDismiss: onDismissCallback, startY: e.touches[0].clientY, currentY: e.touches[0].clientY, };
+            if (e.target.closest('.progress-container, .volume-container, .player-controls, .form-group, button')) return;
+            this.touch = {
+                isDragging: true, target: targetElement, onDismiss: onDismissCallback,
+                startY: e.touches[0].clientY, currentY: e.touches[0].clientY,
+            };
             this.touch.target.classList.add('no-transition');
         }
         handleTouchMove(e) {
             if (!this.touch.isDragging) return;
             this.touch.currentY = e.touches[0].clientY;
             let deltaY = this.touch.currentY - this.touch.startY;
-            if (deltaY > -50) { e.preventDefault(); this.touch.target.style.transform = `translateY(${deltaY}px)`; }
+            if (deltaY > -50) { // Allow slight upward movement
+                e.preventDefault();
+                this.touch.target.style.transform = `translateY(${deltaY}px)`;
+            }
         }
         handleTouchEnd() {
             if (!this.touch.isDragging) return;
@@ -568,37 +540,6 @@
             if (deltaY > 100) { this.touch.onDismiss(); } 
             else { this.touch.target.style.transform = ''; }
             this.touch.isDragging = false;
-        }
-    }
-
-    class ItemSwipeHandler {
-        constructor() { this.touch = { startX: 0, currentX: 0, isDragging: false, target: null, activeContainer: null }; }
-        handleTouchStart(e) {
-            const target = e.target.closest('.swipe-content');
-            if (!target || target.closest('[data-action="showSubView"]')) { if(this.touch.activeContainer) this.reset(this.touch.activeContainer); return; }
-            if (this.touch.activeContainer && this.touch.activeContainer !== target.parentElement) this.reset(this.touch.activeContainer);
-            this.touch = { startX: e.touches[0].clientX, currentX: e.touches[0].clientX, isDragging: true, target: target, activeContainer: target.parentElement };
-        }
-        handleTouchMove(e) {
-            if (!this.touch.isDragging) return;
-            this.touch.currentX = e.touches[0].clientX;
-            let deltaX = this.touch.currentX - this.touch.startX;
-            if (deltaX < 10 && deltaX > -200) this.touch.target.style.transform = `translateX(${deltaX}px)`;
-        }
-        handleTouchEnd() {
-            if (!this.touch.isDragging) return;
-            let deltaX = this.touch.currentX - this.touch.startX;
-            const actionsWidth = this.touch.activeContainer.querySelector('.swipe-actions').offsetWidth;
-            if (deltaX < -50) {
-                this.touch.target.style.transform = `translateX(-${actionsWidth}px)`;
-            } else {
-                this.reset(this.touch.activeContainer);
-            }
-            this.touch.isDragging = false;
-        }
-        reset(container) {
-            if(container) container.querySelector('.swipe-content').style.transform = '';
-            this.touch.activeContainer = null;
         }
     }
 
@@ -650,26 +591,30 @@
                 this.loadSong(song);
             }
         },
-        seek(e) { if(!app.nowPlaying.id)return;const t=e.currentTarget.getBoundingClientRect();DOM.audio.currentTime=DOM.audio.duration*(e.clientX-t.left)/t.width },
-        setVolume(e) { const t=e.currentTarget.getBoundingClientRect();DOM.audio.volume=(e.clientX-t.left)/t.width;document.getElementById("volume-fill").style.width=`${100*DOM.audio.volume}%`},
-        updateProgress() { if(!DOM.audio.duration)return;const{currentTime:e,duration:t}=DOM.audio;document.getElementById("progress-fill").style.width=`${e/t*100}%`;document.getElementById("current-time").textContent=Player.formatTime(e);document.getElementById("total-time").textContent=`-${Player.formatTime(t-e)}`},
+        seek: e => { /* ... unchanged ... */ },
+        setVolume: e => { /* ... unchanged ... */ },
+        updateProgress: () => { /* ... unchanged ... */ },
         formatTime: s => `${Math.floor(s/60)}:${Math.floor(s%60).toString().padStart(2,'0')}`,
     };
+    Player.seek = function(e){ if(!app.nowPlaying.id)return;const t=e.currentTarget.getBoundingClientRect();DOM.audio.currentTime=DOM.audio.duration*(e.clientX-t.left)/t.width };
+    Player.setVolume = function(e){ const t=e.currentTarget.getBoundingClientRect();DOM.audio.volume=(e.clientX-t.left)/t.width,document.getElementById("volume-fill").style.width=`${100*DOM.audio.volume}%`};
+    Player.updateProgress = function(){ if(!DOM.audio.duration)return;const{currentTime:e,duration:t}=DOM.audio;document.getElementById("progress-fill").style.width=`${e/t*100}%`,document.getElementById("current-time").textContent=Player.formatTime(e),document.getElementById("total-time").textContent=`-${Player.formatTime(t-e)}`};
     
     const UI = {
         showLoading: (show) => DOM.loadingOverlay.classList.toggle('active', show),
         showView(viewId) {
             DOM.views.forEach(v => v.classList.toggle('active', v.id === `${viewId}-view`));
             document.querySelectorAll('.tab-item').forEach(t => t.classList.toggle('active', t.dataset.view === viewId));
+            app.navStack = [{ type: 'main', id: viewId }];
             DOM.subView.classList.remove('active');
         },
-        goBack() { this.showView('library'); },
-        showSubView(type, id = null) {
+        goBack() {
+            this.showView('library');
+        },
+        showSubView(type) {
             DOM.views.forEach(v => v.classList.remove('active'));
             DOM.subView.classList.add('active');
-            DOM.subView.dataset.type = type;
-            DOM.subView.dataset.id = id || '';
-            this.renderSubView(type, id);
+            this.renderSubView(type);
         },
         showFullPlayer() { if (app.nowPlaying.id) DOM.fullPlayer.classList.add('active'); },
         hideFullPlayer() { DOM.fullPlayer.classList.remove('active'); },
@@ -680,6 +625,7 @@
             this.updatePlayIcons();
             const song = app.library.songs.find(s => s.id === app.nowPlaying.id);
             if (!song) return;
+            
             ['np-artwork', 'player-artwork'].forEach(id => document.getElementById(id).src = song.artwork);
             ['np-title', 'player-title'].forEach(id => document.getElementById(id).textContent = song.title);
             document.getElementById('player-artist').textContent = song.artist;
@@ -702,9 +648,8 @@
         renderAll() { this.renderLibraryView(); },
         renderLibraryView() {
             const container = document.getElementById('library-content');
-            container.innerHTML = `<div id="library-nav-list"></div><div class="section-header hidden"><h2>Recently Added</h2></div><div class="grid" id="library-recent-grid"></div>`;
+            container.innerHTML = `<div id="library-nav-list"></div><div class="section-header"><h2>Recently Added</h2></div><div class="grid" id="library-recent-grid"></div>`;
             const navList = container.querySelector('#library-nav-list');
-            navList.innerHTML = '';
             [
                 { type: 'playlists', icon: 'fa-list-music', text: 'Playlists' },
                 { type: 'artists', icon: 'fa-microphone-alt', text: 'Artists' },
@@ -718,43 +663,37 @@
             if (recentSongs.length > 0) {
                 sectionHeader.classList.remove('hidden');
                 recentSongs.forEach(song => recentGrid.appendChild(this.createGridItem(song, 'playSong')));
+            } else {
+                sectionHeader.classList.add('hidden');
             }
         },
-        renderSubView(type, id) {
+        renderSubView(type) {
             const titleMap = { playlists: 'Playlists', artists: 'Artists', albums: 'Albums', songs: 'Songs' };
-            document.getElementById('sub-view-title').textContent = titleMap[type] || '';
+            document.getElementById('sub-view-title').textContent = titleMap[type];
             const actionsContainer = document.getElementById('sub-view-actions');
-            actionsContainer.innerHTML = (type === 'playlists' && !id) ? '<button class="icon-btn" data-action="openCreatePlaylistModal"><i class="fas fa-plus"></i></button>' : '';
+            actionsContainer.innerHTML = (type === 'playlists') ? '<button class="icon-btn" data-action="openCreatePlaylistModal"><i class="fas fa-plus"></i></button>' : '';
             
             const contentContainer = document.getElementById('sub-view-content');
-            contentContainer.innerHTML = `<div class="search-bar"><input type="text" class="search-input" placeholder="Search in ${titleMap[type] || 'Library'}"></div>`;
+            contentContainer.innerHTML = `<div class="search-bar"><input type="text" class="search-input" placeholder="Search in ${titleMap[type]}"></div>`;
             
             const rendererMap = {
-                'playlists': id ? this.renderPlaylistDetailView : this.renderPlaylistsView,
-                'artists': this.renderArtistsView, 'albums': this.renderAlbumsView, 'songs': this.renderSongsView,
+                'playlists': this.renderPlaylistsView, 'artists': this.renderArtistsView,
+                'albums': this.renderAlbumsView, 'songs': this.renderSongsView,
             };
-            if(rendererMap[type]) rendererMap[type].call(this, contentContainer, id);
+            if(rendererMap[type]) rendererMap[type].call(this, contentContainer);
         },
         renderPlaylistsView(container) {
              const frag = document.createDocumentFragment();
+             const fav = document.createElement('div');
+             fav.className = 'playlist-item';
+             fav.innerHTML = `<div class="playlist-item-artwork" id="favorite-playlist-artwork"><i class="fas fa-star"></i></div><div class="playlist-info"><div class="playlist-title">Favorite Songs</div></div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`;
+             frag.appendChild(fav);
+
              app.library.playlists.forEach(p => frag.appendChild(this.createPlaylistItem(p)));
-             if (app.library.playlists.length === 0) {
+             if (app.library.playlists.length === 0 && !container.querySelector('.playlist-item')) {
                 container.innerHTML += '<p class="empty-state">No playlists. Create one with the + button.</p>';
              }
              container.appendChild(frag);
-        },
-        renderPlaylistDetailView(container, id) {
-            const playlist = app.library.playlists.find(p => p.id === parseInt(id));
-            if (!playlist) return this.goBack();
-            
-            document.getElementById('sub-view-title').textContent = playlist.name;
-            const songsInPlaylist = playlist.songs.map(songId => app.library.songs.find(s => s.id === songId)).filter(Boolean);
-            
-            if (songsInPlaylist.length === 0) {
-                container.innerHTML += '<p class="empty-state">This playlist is empty.</p>';
-                return;
-            }
-            songsInPlaylist.forEach(song => container.appendChild(this.createSongListItem(song)));
         },
         renderArtistsView(container) {
             const artists = Object.keys(app.library.artists).sort();
@@ -764,6 +703,7 @@
         renderAlbumsView(container) {
             const albums = Object.keys(app.library.albums).sort();
             if (albums.length === 0) { container.innerHTML += '<p class="empty-state">No albums found.</p>'; return; }
+            container.innerHTML += `<div class="action-buttons"><button class="action-btn">Play</button><button class="action-btn">Shuffle</button></div>`;
             const grid = document.createElement('div');
             grid.className = 'grid';
             albums.forEach(name => grid.appendChild(this.createGridItem(app.library.albums[name], 'playAlbum', name)));
@@ -772,65 +712,22 @@
         renderSongsView(container) {
             const songs = app.library.songs;
             if (songs.length === 0) { container.innerHTML += '<p class="empty-state">No songs found.</p>'; return; }
+            container.innerHTML += `<div class="action-buttons"><button class="action-btn">Play</button><button class="action-btn">Shuffle</button></div>`;
             songs.forEach(song => container.appendChild(this.createSongListItem(song)));
         },
-        createListItem(item) {
-            return this.createSwipeableItem({type: item.type, id: item.type, content: `<div class="list-icon"><i class="fas ${item.icon}"></i></div><div class="list-text">${item.text}</div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>` }, "list-item", { delete: false, rename: false }, "showSubView");
-        },
-        createPlaylistItem(playlist) {
-            return this.createSwipeableItem({ type: "playlist", id: playlist.id, content: `<div class="playlist-item-artwork"><img src="${playlist.artwork || 'https://via.placeholder.com/54'}" /></div><div class="playlist-info"><div class="playlist-title">${playlist.name}</div><div class="playlist-subtitle">${playlist.songs.length} songs</div></div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>` }, "playlist-item", { delete: true, rename: true }, "showSubView");
-        },
-        createArtistListItem(name, artwork) {
-            return this.createSwipeableItem({type: "artist", id: name, content: `<div class="list-icon"><img src="${artwork}" style="width:40px; height:40px; border-radius:50%; object-fit: cover;"></div><div class="list-text">${name}</div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>` }, "list-item", { delete: true, rename: false });
-        },
-        createGridItem(item, action, name) {
-            const div = document.createElement('div');
-            div.className = "grid-item";
-            if(action === 'playSong') {
-                div.innerHTML = `<div class="swipe-container"><div class="swipe-content" data-action="playSong" data-id="${item.id}"><img src="${item.artwork}" alt="${item.album}"><div class="grid-item-title">${item.title}</div><div class="grid-item-subtitle">${item.artist}</div></div><div class="swipe-actions"><button class="swipe-action-btn delete" data-action="deleteItem" data-type="song" data-id="${item.id}">Delete</button></div></div>`;
-            } else if (action === 'playAlbum') {
-                 div.innerHTML = `<div class="swipe-container"><div class="swipe-content" data-action="playAlbum" data-album="${name}"><img src="${item.artwork}" alt="${name}"><div class="grid-item-title">${name}</div><div class="grid-item-subtitle">${item.artist}</div></div><div class="swipe-actions"><button class="swipe-action-btn delete" data-action="deleteItem" data-type="album" data-id="${name}">Delete</button></div></div>`;
-            }
+        createListItem: (item) => { /* ... unchanged ... */ },
+        createPlaylistItem: (playlist) => {
+            const div = document.createElement('div'); div.className = 'playlist-item';
+            div.innerHTML = `<div class="playlist-item-artwork"><img src="${playlist.artwork || 'https://via.placeholder.com/54'}" /></div><div class="playlist-info"><div class="playlist-title">${playlist.name}</div><div class="playlist-subtitle">${playlist.songs.length} songs</div></div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`;
             return div;
         },
-        createSongListItem(song) {
-            return this.createSwipeableItem({ type: "song", id: song.id, content: `<img class="song-list-artwork" src="${song.artwork}"><div class="song-list-info-container"><div class="song-list-info"><span class="song-list-title">${song.title}</span><span class="song-list-artist">${song.artist}</span></div><i class="fas fa-ellipsis-h song-menu-btn"></i></div>` }, "song-list-item", { delete: true, rename: false }, "playSong");
-        },
-        handleSearch(e) {
-            const query = e.target.value.toLowerCase();
-            const resultsContainer = document.getElementById('search-results-container');
-            const categoriesContainer = document.getElementById('search-categories');
-            resultsContainer.classList.toggle('hidden', query.length < 2);
-            categoriesContainer.classList.toggle('hidden', query.length >= 2);
-            if(query.length < 2) return;
-
-            resultsContainer.innerHTML = '';
-            const filtered = app.library.songs.filter(s => s.title.toLowerCase().includes(query) || s.artist.toLowerCase().includes(query) || s.album.toLowerCase().includes(query));
-            if(filtered.length === 0) { resultsContainer.innerHTML = '<p class="empty-state">No Results</p>'; return; }
-            filtered.forEach(song => resultsContainer.appendChild(this.createSongListItem(song)));
-        },
-        createSwipeableItem(itemData, baseClass, actions, primaryAction = "") {
-            const container = document.createElement('div');
-            container.className = "swipe-container";
-
-            const content = document.createElement('div');
-            content.className = `swipe-content ${baseClass}`;
-            content.innerHTML = itemData.content;
-            if (primaryAction) content.dataset.action = primaryAction;
-            content.dataset.type = itemData.type;
-            content.dataset.id = itemData.id;
-
-            const actionContainer = document.createElement('div');
-            actionContainer.className = "swipe-actions";
-            
-            if (actions.rename) actionContainer.innerHTML += `<button class="swipe-action-btn rename" data-action="renamePlaylist" data-id="${itemData.id}">Rename</button>`;
-            if (actions.delete) actionContainer.innerHTML += `<button class="swipe-action-btn delete" data-action="deleteItem" data-type="${itemData.type}" data-id="${itemData.id}">Delete</button>`;
-            
-            container.append(content, actionContainer);
-            return container;
-        },
+        createArtistListItem: (name, artwork) => { /* ... unchanged ... */ },
+        createGridItem: (item, action, name) => { /* ... unchanged ... */ },
+        createSongListItem: (song) => { /* ... unchanged ... */ },
+        handleSearch: (e) => { /* ... unchanged ... */ },
     };
-    
+    UI.createListItem=function(e){const t=document.createElement("div");return t.className="list-item",t.dataset.action="showSubView",t.dataset.type=e.type,t.innerHTML=`<div class="list-icon"><i class="fas ${e.icon}"></i></div><div class="list-text">${e.text}</div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`,t},UI.createArtistListItem=function(e,t){const a=document.createElement("div");return a.className="list-item",a.innerHTML=`<div class="list-icon"><img src="${t}" style="width:40px; height:40px; border-radius:50%; object-fit: cover;"></div><div class="list-text">${e}</div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`,a},UI.createGridItem=function(e,t,a){const i=document.createElement("div");if(i.className="grid-item",i.dataset.action=t,"playSong"===t)i.dataset.id=e.id,i.innerHTML=`<img src="${e.artwork}" alt="${e.album}"><div class="grid-item-title">${e.title}</div><div class="grid-item-subtitle">${e.artist}</div>`;else if("playAlbum"===t){i.dataset.album=a,i.innerHTML=`<img src="${e.artwork}" alt="${a}"><div class="grid-item-title">${a}</div><div class="grid-item-subtitle">${e.artist}</div>`}return i},UI.createSongListItem=function(e){const t=document.createElement("div");return t.className="song-list-item",t.dataset.action="playSong",t.dataset.id=e.id,t.innerHTML=`<img class="song-list-artwork" src="${e.artwork}"><div class="song-list-info-container"><div class="song-list-info"><span class="song-list-title">${e.title}<span class="explicit-tag">E</span></span><span class="song-list-artist">${e.artist}</span></div><i class="fas fa-ellipsis-h song-menu-btn"></i></div>`,t},UI.handleSearch=function(e){const t=e.target.value.toLowerCase(),a=document.getElementById("search-results-container"),i=document.getElementById("search-categories");if(a.classList.toggle("hidden",t.length<2),i.classList.toggle("hidden",t.length>=2),t.length<2)return;a.innerHTML="";const l=app.library.songs.filter(e=>e.title.toLowerCase().includes(t)||e.artist.toLowerCase().includes(t)||e.album.toLowerCase().includes(t));if(0===l.length)return void(a.innerHTML='<p class="empty-state">No Results</p>');l.forEach(e=>a.appendChild(this.createSongListItem(e)))};
+
     init();
 });
   </script>
