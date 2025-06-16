@@ -38,12 +38,12 @@
     }
     .view.active { opacity: 1; visibility: visible; z-index: 20; }
 
-    /* Header */
+    /* Header Styles */
     .header { padding: var(--safe-area-top) 20px 10px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; }
     .header.large-title h1 { font-size: 34px; font-weight: 700; }
     .header-profile-icon {
         width: 32px; height: 32px; background: var(--fill-tertiary); color: var(--system-pink);
-        border-radius: 50%; font-size: 14px; display: flex; align-items: center; justify-content: center; font-weight: 600;
+        border-radius: 50%; font-size: 16px; display: flex; align-items: center; justify-content: center;
     }
     .header-with-back {
         padding: var(--safe-area-top) 10px 10px;
@@ -55,6 +55,10 @@
     .header-with-back h1 { font-size: 17px; font-weight: 600; flex: 1; text-align: center; margin: 0 10px; }
     .header-actions { display: flex; gap: 15px; min-width: 40px; justify-content: flex-end; }
     .header-actions .icon-btn { background: none; border: none; color: var(--system-pink); font-size: 22px; cursor: pointer; }
+    .round-btn {
+        background: var(--fill-tertiary); width: 32px; height: 32px; border-radius: 50%;
+        color: var(--system-pink); border: none; font-size: 14px;
+    }
 
     /* Main Content & Common Elements */
     .main-content { flex: 1; overflow-y: auto; scrollbar-width: none; padding-bottom: 130px; }
@@ -71,7 +75,6 @@
     .content-section { margin-bottom: 20px; }
     .section-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 20px 15px; }
     .section-header h2 { font-size: 22px; font-weight: 700; }
-    .section-header .see-all { color: var(--system-pink); font-size: 17px; font-weight: 500; cursor: pointer; }
 
     /* List View */
     .list-item { display: flex; align-items: center; padding: 11px 20px; border-bottom: 1px solid var(--border-color); cursor: pointer; }
@@ -91,23 +94,12 @@
 
     /* Grid & Carousel */
     .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 0 20px; }
-    .carousel { display: flex; gap: 10px; overflow-x: auto; padding: 0 20px; scrollbar-width: none; -ms-overflow-style: none; scroll-snap-type: x mandatory; }
-    .carousel::-webkit-scrollbar { display: none; }
-    .carousel-item { flex: 0 0 45%; scroll-snap-align: start; }
-    .carousel-item.large { flex: 0 0 90%; }
-    .grid-item img, .carousel-item img { width: 100%; aspect-ratio: 1/1; border-radius: 6px; object-fit: cover; margin-bottom: 5px; background: #1c1c1e; }
-    .grid-item-title, .carousel-item-title { font-size: 14px; line-height: 1.2; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .grid-item-subtitle, .carousel-item-subtitle { font-size: 14px; color: var(--system-gray); }
+    .grid-item { cursor: pointer; }
+    .grid-item img { width: 100%; aspect-ratio: 1/1; border-radius: 6px; object-fit: cover; margin-bottom: 5px; background: #1c1c1e; }
+    .grid-item-title { font-size: 14px; line-height: 1.2; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .grid-item-subtitle { font-size: 14px; color: var(--system-gray); }
 
-    /* Specific Page Styles: Home, New, Search */
-    .hero-banner { position: relative; margin: 0 20px; border-radius: 8px; overflow: hidden; }
-    .hero-banner img { width: 100%; display: block; }
-    .hero-banner-overlay { position: absolute; bottom: 0; left: 0; right: 0; padding: 15px; background: linear-gradient(to top, rgba(0,0,0,0.7), transparent); }
-    .hero-banner-label { font-size: 12px; color: var(--system-gray); text-transform: uppercase; font-weight: 600; }
-    .hero-banner-title { font-size: 24px; font-weight: 700; }
-    .hero-banner-subtitle { font-size: 24px; color: var(--system-gray-2); }
-    .hero-banner-description { font-size: 14px; margin-top: 5px; }
-
+    /* Search Page */
     .search-category-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 10px 20px; }
     .category-item { position: relative; cursor: pointer; }
     .category-item img { width: 100%; display: block; border-radius: 8px; aspect-ratio: 1.5 / 1; object-fit: cover; }
@@ -140,7 +132,7 @@
     .full-player {
       position: fixed; top: 100%; left: 0; width: 100%; height: 100%; z-index: 1000; display: flex;
       flex-direction: column; padding: var(--safe-area-top) 25px var(--safe-area-bottom);
-      background-image: linear-gradient(to bottom, #222 0%, #000 70%); /* Fallback */
+      background-image: linear-gradient(to bottom, #222 0%, #000 70%);
       transition: top 0.5s cubic-bezier(0.32, 0.72, 0, 1);
     }
     .full-player.active { top: 0; }
@@ -167,12 +159,24 @@
     .volume-container i { color: var(--system-gray); }
     .volume-slider { flex: 1; height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px; cursor: pointer; }
 
-    /* Upload Modal */
-    .modal-view { position: fixed; top: 100%; left: 0; width: 100%; height: 100%; background: #121212; z-index: 1100; transition: top 0.4s ease-out; display: flex; flex-direction: column; }
-    .modal-view.active { top: 0; }
-    .upload-form { padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+    /* Upload Modal (Bottom Sheet) */
+    .modal-overlay {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1100;
+        opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s;
+    }
+    .modal-overlay.active { opacity: 1; visibility: visible; }
+    .bottom-sheet {
+        position: fixed; bottom: 0; left: 0; right: 0; background: #1c1c1e; z-index: 1200;
+        border-radius: 20px 20px 0 0; padding: 15px 20px calc(20px + var(--safe-area-bottom));
+        transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .bottom-sheet.active { transform: translateY(0); }
+    .sheet-header { text-align: center; margin-bottom: 20px; }
+    .sheet-handle { width: 40px; height: 5px; background: var(--system-gray); border-radius: 2.5px; margin: 0 auto 15px; }
+    .sheet-title { font-size: 18px; font-weight: 600; }
+    .upload-form { display: flex; flex-direction: column; gap: 20px; }
     .upload-artwork-section { text-align: center; }
-    .upload-artwork-preview { width: 200px; height: 200px; background: var(--system-gray-6); border-radius: 8px; margin: 0 auto 15px; object-fit: cover; cursor: pointer; }
+    .upload-artwork-preview { width: 150px; height: 150px; background: #333; border-radius: 8px; margin: 0 auto 15px; object-fit: cover; cursor: pointer; }
     .form-group { display: flex; flex-direction: column; }
     .form-group label { color: var(--system-gray); font-size: 14px; margin-bottom: 8px; text-transform: uppercase; }
     .form-group input, .form-group button { background: var(--fill-tertiary); border: none; border-radius: 8px; padding: 12px; font-size: 17px; color: #fff; }
@@ -186,20 +190,8 @@
 <body>
 
   <div class="app-container">
-    <div id="home-view" class="view">
-        <div class="header large-title"><h1>Home</h1><div class="header-profile-icon">DV</div></div>
-        <div class="main-content" id="home-content"></div>
-    </div>
-    <div id="new-view" class="view">
-        <div class="header large-title"><h1>New</h1><div class="header-profile-icon">DV</div></div>
-        <div class="main-content" id="new-content"></div>
-    </div>
-    <div id="radio-view" class="view">
-        <div class="header large-title"><h1>Radio</h1><div class="header-profile-icon">DV</div></div>
-        <div class="main-content"><p class="empty-state">Radio features would be here.</p></div>
-    </div>
     <div id="library-view" class="view">
-        <div class="header large-title"><h1>Library</h1><div class="header-actions"><button class="icon-btn" data-action="openUploadModal"><i class="fas fa-plus"></i></button></div></div>
+        <div class="header large-title"><h1>Library</h1><div class="header-actions"><button class="round-btn" data-action="openUploadModal"><i class="fas fa-ellipsis"></i></button><div class="header-profile-icon"><i class="fas fa-user"></i></div></div></div>
         <div class="main-content" id="library-content"></div>
     </div>
     <div id="sub-view" class="view">
@@ -211,7 +203,7 @@
         <div class="main-content" id="sub-view-content"></div>
     </div>
     <div id="search-view" class="view">
-      <div class="header large-title"><h1>Search</h1><div class="header-profile-icon">DV</div></div>
+      <div class="header large-title"><h1>Search</h1><div class="header-profile-icon"><i class="fas fa-user"></i></div></div>
       <div class="main-content">
         <div class="search-bar"><input type="text" class="search-input" id="search-input" placeholder="Artists, Songs, Lyrics, and More"><i class="fas fa-microphone search-input-mic"></i></div>
         <div id="search-results-container" class="hidden"></div>
@@ -226,19 +218,17 @@
     </div>
   </div>
 
-  <div id="upload-view" class="modal-view">
-    <div class="header header-with-back">
-        <div style="min-width: 60px;"></div><h1 style="text-align: center;">Add Music</h1>
-        <div class="header-actions"><button class="icon-btn" style="font-size: 17px;" data-action="closeUploadModal">Cancel</button></div>
-    </div>
-    <div class="main-content"><form class="upload-form" id="upload-form">
-        <div class="upload-artwork-section"><img id="upload-artwork-preview" class="upload-artwork-preview" src="https://via.placeholder.com/200?text=Select+Artwork" data-action="triggerArtworkUpload" alt="Artwork Preview"><input type="file" id="artwork-input" class="hidden" accept="image/*"></div>
+  <div class="modal-overlay" id="modal-overlay" data-action="closeUploadModal"></div>
+  <div class="bottom-sheet" id="upload-sheet">
+    <div class="sheet-header"><div class="sheet-handle"></div><h2 class="sheet-title">Add to Library</h2></div>
+    <form class="upload-form" id="upload-form">
+        <div class="upload-artwork-section"><img id="upload-artwork-preview" class="upload-artwork-preview" src="https://via.placeholder.com/150?text=Artwork" data-action="triggerArtworkUpload" alt="Artwork Preview"><input type="file" id="artwork-input" class="hidden" accept="image/*"></div>
         <div class="form-group"><label for="song-title-input">TITLE</label><input type="text" id="song-title-input" required></div>
         <div class="form-group"><label for="song-artist-input">ARTIST</label><input type="text" id="song-artist-input" required></div>
         <div class="form-group"><label for="song-album-input">ALBUM</label><input type="text" id="song-album-input" required></div>
         <div class="form-group"><button type="button" id="upload-file-button" data-action="triggerSongUpload">Select Song File (.mp3)</button><span id="song-file-name" style="color: var(--system-gray); font-size: 14px; margin-top: 8px; text-align: center;">No file selected.</span><input type="file" id="music-file-input" class="hidden" accept=".mp3"></div>
-        <button type="button" id="submit-upload-button" data-action="submitUpload">Add to Library</button>
-    </form></div>
+        <button type="button" id="submit-upload-button" data-action="submitUpload">Add Song</button>
+    </form>
   </div>
 
   <div class="now-playing-bar" id="now-playing-bar" data-action="showFullPlayer">
@@ -264,9 +254,6 @@
   </div>
 
   <div class="tab-bar">
-    <div class="tab-item" data-action="showView" data-view="home"><i class="fas fa-house tab-icon"></i><span class="tab-label">Home</span></div>
-    <div class="tab-item" data-action="showView" data-view="new"><i class="fas fa-table-cells tab-icon"></i><span class="tab-label">New</span></div>
-    <div class="tab-item" data-action="showView" data-view="radio"><i class="fas fa-dot-circle tab-icon"></i><span class="tab-label">Radio</span></div>
     <div class="tab-item active" data-action="showView" data-view="library"><i class="fas fa-rectangle-stack tab-icon"></i><span class="tab-label">Library</span></div>
     <div class="tab-item" data-action="showView" data-view="search"><i class="fas fa-magnifying-glass tab-icon"></i><span class="tab-label">Search</span></div>
   </div>
@@ -289,7 +276,8 @@
         views: document.querySelectorAll('.view'),
         fullPlayer: document.getElementById('full-player'),
         audio: document.getElementById('audio'),
-        uploadView: document.getElementById('upload-view'),
+        uploadSheet: document.getElementById('upload-sheet'),
+        modalOverlay: document.getElementById('modal-overlay'),
         subView: document.getElementById('sub-view'),
     };
 
@@ -348,7 +336,7 @@
       
     const DB = {
         init: () => new Promise(resolve => {
-            const request = indexedDB.open("AppleMusicDB_v4", 1);
+            const request = indexedDB.open("AppleMusicDB_v5", 1);
             request.onupgradeneeded = e => {
                 const db = e.target.result;
                 if (!db.objectStoreNames.contains("songs")) db.createObjectStore("songs", { keyPath: "id", autoIncrement: true });
@@ -378,11 +366,18 @@
     };
     
     const Upload = {
-        openModal: () => DOM.uploadView.classList.add('active'),
-        closeModal: () => { DOM.uploadView.classList.remove('active'); this.resetForm(); },
+        openModal: () => {
+            DOM.uploadSheet.classList.add('active');
+            DOM.modalOverlay.classList.add('active');
+        },
+        closeModal: () => {
+            DOM.uploadSheet.classList.remove('active');
+            DOM.modalOverlay.classList.remove('active');
+            this.resetForm();
+        },
         resetForm() {
             document.getElementById('upload-form').reset();
-            document.getElementById('upload-artwork-preview').src = 'https://via.placeholder.com/200?text=Select+Artwork';
+            document.getElementById('upload-artwork-preview').src = 'https://via.placeholder.com/150?text=Artwork';
             document.getElementById('song-file-name').textContent = 'No file selected.';
             app.uploadData = { songFile: null, artworkFile: null, artworkBase64: null };
         },
@@ -465,8 +460,7 @@
             const songIndex = app.library.songs.findIndex(s => s.id === songId);
             if (songIndex === -1) return;
             app.nowPlaying.queue = app.library.songs.map(s => s.id);
-            app.nowPlaying.currentIndex = songIndex;
-            this.loadSong(app.library.songs[songIndex]);
+            this.playFromQueue(songIndex);
         },
         loadSong(song) {
             app.nowPlaying.id = song.id;
@@ -510,9 +504,8 @@
         },
         setVolume: e => {
             const rect = e.currentTarget.getBoundingClientRect();
-            const percentage = (e.clientX - rect.left) / rect.width;
-            DOM.audio.volume = percentage;
-            document.getElementById('volume-fill').style.width = `${percentage * 100}%`;
+            DOM.audio.volume = (e.clientX - rect.left) / rect.width;
+            document.getElementById('volume-fill').style.width = `${DOM.audio.volume * 100}%`;
         },
         updateProgress: () => {
             if (!DOM.audio.duration) return;
@@ -535,8 +528,7 @@
             if (app.navStack.length <= 1) return;
             app.navStack.pop();
             const lastView = app.navStack[app.navStack.length - 1];
-            if (lastView.type === 'main') this.showView(lastView.id);
-            else this.showSubView(lastView.id);
+            this.showView(lastView.id);
         },
         showFullPlayer() {
             if (!app.nowPlaying.id) return;
@@ -544,10 +536,9 @@
             DOM.fullPlayer.classList.add('active');
         },
         hideFullPlayer() {
-            DOM.fullPlayer.style.transform = 'translateY(100%)';
+            DOM.fullPlayer.style.transform = '';
             setTimeout(() => {
                 DOM.fullPlayer.classList.remove('active');
-                DOM.fullPlayer.style.transform = '';
             }, 500);
         },
         updatePlayerUI() {
@@ -558,10 +549,8 @@
             const song = app.library.songs.find(s => s.id === app.nowPlaying.id);
             if (!song) return;
             
-            document.getElementById('np-artwork').src = song.artwork;
-            document.getElementById('np-title').textContent = song.title;
-            document.getElementById('player-artwork').src = song.artwork;
-            document.getElementById('player-title').textContent = song.title;
+            ['np-artwork', 'player-artwork'].forEach(id => document.getElementById(id).src = song.artwork);
+            ['np-title', 'player-title'].forEach(id => document.getElementById(id).textContent = song.title);
             document.getElementById('player-artist').textContent = song.artist;
             this.updatePlayerBackground(song.artwork);
         },
@@ -582,7 +571,7 @@
             };
             img.onerror = () => { DOM.fullPlayer.style.backgroundImage = 'linear-gradient(to bottom, #222 0%, #000 70%)' };
         },
-        renderAll() { this.renderLibraryView(); this.renderHomeView(); this.renderNewView(); },
+        renderAll() { this.renderLibraryView(); },
         renderLibraryView() {
             const container = document.getElementById('library-content');
             container.innerHTML = `<div id="library-nav-list"></div><div class="section-header"><h2>Recently Added</h2></div><div class="grid" id="library-recent-grid"></div>`;
@@ -596,24 +585,7 @@
             const recentGrid = container.querySelector('#library-recent-grid');
             const recentSongs = [...app.library.songs].sort((a,b)=>b.addedAt-a.addedAt).slice(0,4);
             recentGrid.innerHTML = '';
-            recentSongs.forEach(song => recentGrid.appendChild(this.createGridItem(song, 'playSong')));
-        },
-        renderHomeView() {
-            const container = document.getElementById('home-content');
-            container.innerHTML = `<div class="section-header"><h2>Top Picks for You</h2></div><div class="carousel" id="home-top-picks"></div><div class="section-header"><h2>Recently Played</h2><i class="fas fa-chevron-right see-all"></i></div><div class="grid" id="home-recent-grid"></div>`;
-            const topPicks = container.querySelector('#home-top-picks');
-            topPicks.innerHTML = `<div class="carousel-item large"><img src="https://is1-ssl.mzstatic.com/image/thumb/Features112/v4/5a/48/43/5a484347-1563-9585-2953-605637213454/U0YtTVMtV1ctRGVyZWtWYWxpamFuJ3NTdGF0aW9uLXBUUy1MYXJnZS5wbmc.png/1000x1000.png" alt="Station"><p style="font-size: 12px; color: var(--system-gray);">Made for You</p><p class="carousel-item-title">Derek Valijan's Station</p></div>`;
-            const recentGrid = container.querySelector('#home-recent-grid');
-            const recentSongs = [...app.library.songs].sort((a,b)=>b.addedAt-a.addedAt).slice(0,4);
-            recentGrid.innerHTML = '';
-            recentSongs.forEach(song => recentGrid.appendChild(this.createGridItem(song, 'playSong')));
-        },
-        renderNewView() {
-            const container = document.getElementById('new-content');
-            container.innerHTML = `<div class="hero-banner"><img src="https://is1-ssl.mzstatic.com/image/thumb/Features112/v4/4a/4c/3e/4a4c3e7f-7a42-5a58-868d-19c2c2876646/QkFELUFQUC1XVy1Eb3BhbWluZS1MVEVYVC1Nb2R1bGUucG5n/1320x720.png" alt="Dopamine"></div><div class="section-header"><h2>Latest Songs</h2><i class="fas fa-chevron-right see-all"></i></div><div id="new-latest-songs"></div>`;
-            const songListContainer = container.querySelector('#new-latest-songs');
-            const latestSongs = [...app.library.songs].sort((a,b)=>b.addedAt-a.addedAt).slice(0,5);
-            latestSongs.forEach(song => songListContainer.appendChild(this.createSongListItem(song)));
+            recentSongs.forEach(song => recentGrid.appendChild(this.createGridItem(song)));
         },
         createListItem(item) {
             const div = document.createElement('div');
@@ -623,22 +595,12 @@
             div.innerHTML = `<div class="list-icon"><i class="fas ${item.icon}"></i></div><div class="list-text">${item.text}</div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`;
             return div;
         },
-        createGridItem(item, action) {
+        createGridItem(song) {
             const div = document.createElement('div');
             div.className = 'grid-item';
-            div.dataset.action = action;
-            if(action === 'playSong') {
-                div.dataset.id = item.id;
-                div.innerHTML = `<img src="${item.artwork}" alt="${item.album}"><div class="grid-item-title">${item.title}</div><div class="grid-item-subtitle">${item.artist}</div>`;
-            }
-            return div;
-        },
-        createSongListItem(song) {
-            const div = document.createElement('div');
-            div.className = 'song-list-item';
             div.dataset.action = 'playSong';
             div.dataset.id = song.id;
-            div.innerHTML = `<img class="song-list-artwork" src="${song.artwork}"><div class="song-list-info-container"><div class="song-list-info"><span class="song-list-title">${song.title}<span class="explicit-tag">E</span></span><span class="song-list-artist">${song.artist}</span></div><i class="fas fa-ellipsis-h song-menu-btn"></i></div>`;
+            div.innerHTML = `<img src="${song.artwork}" alt="${song.album}"><div class="grid-item-title">${song.title}</div><div class="grid-item-subtitle">${song.artist}</div>`;
             return div;
         },
     };
