@@ -39,10 +39,11 @@
       background: #000; z-index: 10;
     }
     .view.active { transform: translateX(0); z-index: 20; }
-    .view.inactive-left { transform: translateX(-30%); transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
     .view.main-view { transition: opacity 0.2s; }
-    .view.main-view.inactive-left { transform: translateX(0); opacity: 0; }
-    
+    .view.inactive-left { transform: translateX(-30%); transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+    .view.main-view.active { transform: translateX(0); opacity: 1; visibility: visible; }
+    .view.main-view:not(.active) { opacity: 0; visibility: hidden; }
+
     /* Header Styles */
     .header { padding: var(--safe-area-top) 20px 10px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; }
     .header.large-title h1 { font-size: 34px; font-weight: 700; }
@@ -343,7 +344,7 @@
 
     const app = {
         db: null,
-        navStack: [],
+        navStack: ['library'], // Start with the library view
         nowPlaying: { id: null, queue: [], currentIndex: -1, isPlaying: false },
         library: { songs: [], playlists: [], artists: {}, albums: {} },
         uploadData: { songFile: null, artworkBase64: null },
@@ -366,7 +367,7 @@
         DB.init().then(() => {
             Library.loadAllData().then(() => {
                 UI.renderAll();
-                UI.showView('library');
+                UI.showView('library', true); // Initial view without animation
             });
         });
         setupEventListeners();
@@ -418,26 +419,21 @@
         const actions = {
             'showView': () => UI.showView(target.dataset.view),
             'goBack': UI.goBack,
-            'openUploadModal': Upload.openModal,
-            'closeUploadModal': Upload.closeModal,
-            'openCreatePlaylistModal': Playlist.openModal,
-            'closeCreatePlaylistModal': Playlist.closeModal,
+            'openUploadModal': Upload.openModal, 'closeUploadModal': Upload.closeModal,
+            'openCreatePlaylistModal': Playlist.openModal, 'closeCreatePlaylistModal': Playlist.closeModal,
             'triggerArtworkUpload': () => document.getElementById('artwork-input').click(),
             'triggerSongUpload': () => document.getElementById('music-file-input').click(),
             'triggerPlaylistArtworkUpload': () => document.getElementById('playlist-artwork-input').click(),
             'submitUpload': Upload.submit,
             'submitCreatePlaylist': Playlist.submit,
-            'showSubView': () => UI.showSubView(target.dataset.type, { prevViewId: app.navStack[app.navStack.length - 1].id }),
+            'showSubView': () => UI.showSubView(target.dataset.type, { prevViewId: app.navStack[app.navStack.length - 1] }),
             'viewPlaylist': () => UI.showSubView('playlistDetail', { playlistId: parseInt(target.dataset.id), prevViewId: 'playlists' }),
             'playSong': () => Player.playSong(parseInt(target.dataset.id), target.dataset.playlistId ? parseInt(target.dataset.playlistId) : null),
             'playAlbum': () => Player.playAlbum(target.dataset.album),
             'togglePlay': Player.togglePlay,
-            'nextSong': Player.nextSong,
-            'prevSong': Player.prevSong,
-            'showFullPlayer': UI.showFullPlayer,
-            'hideFullPlayer': UI.hideFullPlayer,
-            'seek': Player.seek,
-            'setVolume': Player.setVolume,
+            'nextSong': Player.nextSong, 'prevSong': Player.prevSong,
+            'showFullPlayer': UI.showFullPlayer, 'hideFullPlayer': UI.hideFullPlayer,
+            'seek': Player.seek, 'setVolume': Player.setVolume,
             'deleteSong': () => Library.deleteSong(parseInt(target.dataset.id)),
             'renamePlaylist': () => Library.renamePlaylist(parseInt(target.dataset.id)),
             'deletePlaylist': () => Library.deletePlaylist(parseInt(target.dataset.id)),
@@ -452,7 +448,7 @@
       
     const DB = {
         init: () => new Promise(resolve => {
-            const request = indexedDB.open("AppleMusicDB_v13_Final", 1);
+            const request = indexedDB.open("AppleMusicDB_v14_Final", 1);
             request.onupgradeneeded = e => {
                 const db = e.target.result;
                 if (!db.objectStoreNames.contains("songs")) db.createObjectStore("songs", { keyPath: "id", autoIncrement: true });
@@ -460,7 +456,11 @@
             };
             request.onsuccess = e => { app.db = e.target.result; resolve(); };
         }),
-        add: (store, item) => new Promise(res => app.db.transaction(store, 'readwrite').objectStore(store).add(item).onsuccess = res),
+        add: (store, item) => new Promise((resolve, reject) => {
+            const req = app.db.transaction(store, 'readwrite').objectStore(store).add(item);
+            req.onsuccess = event => resolve(event.target.result);
+            req.onerror = event => reject(event.target.error);
+        }),
         put: (store, item) => new Promise(res => app.db.transaction(store, 'readwrite').objectStore(store).put(item).onsuccess = res),
         delete: (store, id) => new Promise(res => app.db.transaction(store, 'readwrite').objectStore(store).delete(id).onsuccess = res),
         getAll: store => new Promise(res => app.db.transaction(store).objectStore(store).getAll().onsuccess = e => res(e.target.result)),
@@ -562,22 +562,21 @@
             };
             if (!song.title || !song.artist || !song.album || !song.file) { alert("Please fill all fields and select a song file."); return; }
             UI.showLoading(true);
-            
-            const addReq = app.db.transaction('songs', 'readwrite').objectStore('songs').add(song);
-            
-            addReq.onsuccess = async (event) => {
-                const songId = event.target.result;
+            try {
+                const songId = await DB.add('songs', song);
                 const selectedPlaylistId = document.getElementById('add-to-playlist-select').value;
                 if (selectedPlaylistId) {
-                    await Playlist.addSongToPlaylist(songId, parseInt(selectedPlaylistId));
+                    await Playlist.addSongToPlaylist(songId, parseInt(selectedPlaylistId), false);
                 }
                 await Library.loadAllData();
                 UI.renderAll();
+            } catch (error) {
+                console.error("Failed to add song:", error);
+                alert("Failed to add song.");
+            } finally {
                 UI.showLoading(false);
                 this.closeModal();
-            };
-
-            addReq.onerror = () => { UI.showLoading(false); alert("Failed to add song."); };
+            }
         }
     };
     
@@ -616,13 +615,13 @@
             UI.showLoading(false);
             this.closeModal();
         },
-        async addSongToPlaylist(songId, playlistId) {
+        async addSongToPlaylist(songId, playlistId, showAlert = true) {
             const playlist = app.library.playlists.find(p => p.id === playlistId);
             if (playlist && !playlist.songs.includes(songId)) {
                 playlist.songs.push(songId);
                 await DB.put('playlists', playlist);
                 UI.closeContextMenu();
-                alert('Song added to playlist!');
+                if (showAlert) alert('Song added to playlist!');
             }
         }
     };
@@ -756,8 +755,13 @@
         },
         togglePlay() {
             if (!app.nowPlaying.id) return;
-            app.nowPlaying.isPlaying ? DOM.audio.pause() : DOM.audio.play();
-            app.nowPlaying.isPlaying = !app.nowPlaying.isPlaying;
+            if (DOM.audio.paused) {
+                DOM.audio.play();
+                app.nowPlaying.isPlaying = true;
+            } else {
+                DOM.audio.pause();
+                app.nowPlaying.isPlaying = false;
+            }
             UI.updatePlayIcons();
         },
         nextSong() {
@@ -812,32 +816,33 @@
     
     const UI = {
         showLoading: (show) => DOM.loadingOverlay.classList.toggle('active', show),
-        showView(viewId) {
-            const currentActive = document.querySelector('.view.active');
+        showView(viewId, isInitial = false) {
             const newActive = document.getElementById(`${viewId}-view`);
-            
-            if (currentActive) {
-                currentActive.classList.remove('active');
-                if (currentActive.classList.contains('main-view')) {
-                     currentActive.classList.add('inactive-left');
-                }
-            }
+            if (!newActive) return;
 
-            newActive.classList.remove('inactive-left');
-            newActive.classList.add('active');
+            if (isInitial) {
+                newActive.style.transition = 'none';
+                DOM.mainViews.forEach(v => v.classList.remove('active', 'inactive-left'));
+                newActive.classList.add('active');
+                setTimeout(() => newActive.style.transition = '', 50);
+            } else {
+                const currentActive = document.querySelector('.view.active');
+                if (currentActive) {
+                    currentActive.classList.remove('active');
+                }
+                newActive.classList.remove('inactive-left');
+                newActive.classList.add('active');
+            }
 
             document.querySelectorAll('.tab-item').forEach(t => t.classList.toggle('active', t.dataset.view === viewId));
         },
         goBack() {
-            const currentActive = document.querySelector('.view.active');
             const previousViewId = app.navStack.pop();
-            
-            if (currentActive) {
-                currentActive.classList.remove('active');
-            }
-            
-            const newActive = document.getElementById(`${previousViewId}-view`);
-            if (newActive) {
+            if (previousViewId) {
+                const currentActive = document.querySelector('.view.active');
+                if (currentActive) currentActive.classList.remove('active');
+
+                const newActive = document.getElementById(`${previousViewId}-view`);
                 newActive.classList.remove('inactive-left');
                 newActive.classList.add('active');
             } else {
@@ -846,13 +851,12 @@
         },
         showSubView(type, data = {}) {
             const currentActive = document.querySelector('.view.active');
-            if (currentActive) {
-                app.navStack.push(currentActive.id.replace('-view', ''));
-                currentActive.classList.add('inactive-left');
-            }
-
+            if(currentActive) app.navStack.push(currentActive.id.replace('-view', ''));
+            
             this.renderSubView(type, data);
-            DOM.subView.classList.remove('inactive-left');
+            
+            if(currentActive) currentActive.classList.add('inactive-left');
+            DOM.subView.classList.remove('inactive-left'); // Ensure it slides in from the right
             DOM.subView.classList.add('active');
         },
         showFullPlayer() { if (app.nowPlaying.id) DOM.fullPlayer.classList.add('active'); },
