@@ -214,7 +214,8 @@
     .form-group button { background: var(--system-pink); cursor: pointer; font-weight: 600; }
 
     /* Context Menu */
-    .context-menu-overlay { position: fixed; inset: 0; z-index: 1300; }
+    .context-menu-overlay { position: fixed; inset: 0; z-index: 1300; display: none; }
+    .context-menu-overlay.active { display: block; }
     .context-menu {
         position: absolute; background: #2c2c2e; border-radius: 12px;
         min-width: 250px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
@@ -401,8 +402,10 @@
         const actions = {
             'showView': () => UI.showView(target.dataset.view),
             'goBack': UI.goBack,
-            'openUploadModal': Upload.openModal, 'closeUploadModal': Upload.closeModal,
-            'openCreatePlaylistModal': Playlist.openModal, 'closeCreatePlaylistModal': Playlist.closeModal,
+            'openUploadModal': Upload.openModal,
+            'closeUploadModal': Upload.closeModal,
+            'openCreatePlaylistModal': Playlist.openModal,
+            'closeCreatePlaylistModal': Playlist.closeModal,
             'triggerArtworkUpload': () => document.getElementById('artwork-input').click(),
             'triggerSongUpload': () => document.getElementById('music-file-input').click(),
             'triggerPlaylistArtworkUpload': () => document.getElementById('playlist-artwork-input').click(),
@@ -413,9 +416,12 @@
             'playSong': () => Player.playSong(parseInt(target.dataset.id), target.dataset.playlistId ? parseInt(target.dataset.playlistId) : null),
             'playAlbum': () => Player.playAlbum(target.dataset.album),
             'togglePlay': Player.togglePlay,
-            'nextSong': Player.nextSong, 'prevSong': Player.prevSong,
-            'showFullPlayer': UI.showFullPlayer, 'hideFullPlayer': UI.hideFullPlayer,
-            'seek': Player.seek, 'setVolume': Player.setVolume,
+            'nextSong': Player.nextSong,
+            'prevSong': Player.prevSong,
+            'showFullPlayer': UI.showFullPlayer,
+            'hideFullPlayer': UI.hideFullPlayer,
+            'seek': Player.seek,
+            'setVolume': Player.setVolume,
             'deleteSong': () => Library.deleteSong(parseInt(target.dataset.id)),
             'renamePlaylist': () => Library.renamePlaylist(parseInt(target.dataset.id)),
             'deletePlaylist': () => Library.deletePlaylist(parseInt(target.dataset.id)),
@@ -450,9 +456,11 @@
             this.processLibrary();
         },
         processLibrary() {
-            app.library.artists = {}; app.library.albums = {};
+            app.library.artists = {};
+            app.library.albums = {};
             app.library.songs.forEach(song => {
-                const artist = song.artist || "Unknown Artist", album = song.album || "Unknown Album";
+                const artist = song.artist || "Unknown Artist";
+                const album = song.album || "Unknown Album";
                 if (!app.library.artists[artist]) app.library.artists[artist] = [];
                 app.library.artists[artist].push(song);
                 if (!app.library.albums[album]) app.library.albums[album] = { songs: [], artwork: song.artwork, artist: artist };
@@ -781,14 +789,21 @@
             document.querySelectorAll('.tab-item').forEach(t => t.classList.toggle('active', t.dataset.view === viewId));
             DOM.subView.classList.remove('active');
         },
-        goBack() { this.showView('library'); },
+        goBack() {
+            this.showView('library');
+        },
         showSubView(type, data = {}) {
             this.renderSubView(type, data);
             DOM.views.forEach(v => v.classList.remove('active'));
             DOM.subView.classList.add('active');
         },
-        showFullPlayer() { if (app.nowPlaying.id) DOM.fullPlayer.classList.add('active'); },
-        hideFullPlayer() { DOM.fullPlayer.classList.remove('active'); },
+        showFullPlayer() {
+            if (!app.nowPlaying.id) return;
+            DOM.fullPlayer.classList.add('active');
+        },
+        hideFullPlayer() {
+            DOM.fullPlayer.classList.remove('active');
+        },
         updatePlayerUI() {
             const bar = document.getElementById('now-playing-bar');
             if (!app.nowPlaying.id) { bar.classList.remove('active'); return; }
@@ -808,13 +823,19 @@
             document.getElementById('main-play-icon').className = `fas ${isPlaying ? 'fa-pause-circle' : 'fa-play-circle'}`;
         },
         updatePlayerBackground(imgSrc) {
-            const img = new Image; img.crossOrigin = "Anonymous"; img.src = imgSrc;
+            const img = new Image;
+            img.crossOrigin = "Anonymous";
+            img.src = imgSrc;
             img.onload = () => {
-                const c=document.createElement("canvas"), ctx=c.getContext("2d"); c.width=1; c.height=1; ctx.drawImage(img,0,0,1,1);
-                const [r,g,b] = ctx.getImageData(0,0,1,1).data;
+                const c = document.createElement("canvas"), ctx = c.getContext("2d");
+                c.width = 1; c.height = 1;
+                ctx.drawImage(img, 0, 0, 1, 1);
+                const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
                 DOM.fullPlayer.style.backgroundImage = `linear-gradient(to bottom, rgb(${r},${g},${b}) 0%, #000 70%)`;
             };
-            img.onerror = () => { DOM.fullPlayer.style.backgroundImage = 'linear-gradient(to bottom, #222 0%, #000 70%)'};
+            img.onerror = () => {
+                DOM.fullPlayer.style.backgroundImage = 'linear-gradient(to bottom, #222 0%, #000 70%)'
+            };
         },
         renderAll() { this.renderLibraryView(); },
         renderLibraryView() {
@@ -828,7 +849,7 @@
                 { type: 'songs', icon: 'fa-music', text: 'Songs' },
             ].forEach(item => navList.appendChild(this.createListItem(item)));
             const recentGrid = container.querySelector('#library-recent-grid');
-            const recentSongs = [...app.library.songs].sort((a,b)=>b.addedAt-a.addedAt).slice(0,4);
+            const recentSongs = [...app.library.songs].sort((a, b) => b.addedAt - a.addedAt).slice(0, 4);
             const sectionHeader = container.querySelector('.section-header');
             if (recentSongs.length > 0) {
                 sectionHeader.classList.remove('hidden');
@@ -847,8 +868,10 @@
             const contentContainer = document.getElementById('sub-view-content');
             
             const rendererMap = {
-                'playlists': this.renderPlaylistsView, 'artists': this.renderArtistsView,
-                'albums': this.renderAlbumsView, 'songs': this.renderSongsView,
+                'playlists': this.renderPlaylistsView,
+                'artists': this.renderArtistsView,
+                'albums': this.renderAlbumsView,
+                'songs': this.renderSongsView,
                 'playlistDetail': (container) => this.renderPlaylistDetailView(container, data.playlistId)
             };
             if(rendererMap[type]) {
@@ -977,7 +1000,7 @@
             filtered.forEach(song => resultsContainer.appendChild(this.createSongListItem(song)));
         },
         handleContextMenu(e) {
-            const songItem = e.target.closest('.swipeable-list-item .swipe-content[data-action="playSong"]');
+            const songItem = e.target.closest('.swipe-content[data-action="playSong"]');
             if (!songItem) return;
             e.preventDefault();
 
