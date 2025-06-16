@@ -76,33 +76,38 @@
     .list-text { flex: 1; font-size: 17px; }
     .list-arrow { color: var(--system-gray); font-size: 14px; }
     
-    /* Swipe list styling */
     .list-item-swipe-container { 
         position: relative; 
         overflow: hidden; 
     }
-    .list-item-swipe-content { /* This is the moving element */
+    .list-item-swipe-inner {
+        display: flex;
+        width: 100%;
+        transform: translateX(0);
+        transition: transform 0.3s ease;
+        will-change: transform;
+    }
+    .list-item-swipe-content {
+        flex-shrink: 0;
+        width: 100%;
         display: flex;
         align-items: center;
         background: #000;
-        transition: transform 0.3s ease;
-        will-change: transform;
-        padding: 8px 20px; /* Padding for the visible content */
+        padding: 8px 20px;
         border-bottom: 1px solid var(--border-color);
-        width: 100%; /* Ensures it covers the full width of the container */
     }
     .list-item-swipe-container:last-of-type .list-item-swipe-content { 
         border-bottom: none; 
     }
+    .playlist-swipe-content .playlist-item {
+        padding: 0; 
+    }
 
     .list-item-actions { 
-        position: absolute; 
-        top: 0; 
-        right: 0; 
-        height: 100%; 
+        flex-shrink: 0; 
         display: flex; 
+        height: 100%; 
         white-space: nowrap; 
-        z-index: 0; /* Ensures it's behind the content until swiped */
     }
     .list-action-btn { 
         height: 100%; 
@@ -117,8 +122,6 @@
     }
     .action-delete { background: var(--system-red); }
     .action-edit { background: var(--system-gray-2); }
-
-    /* Specific to song list items */
     .song-list-artwork { width: 44px; height: 44px; border-radius: 4px; object-fit: cover; margin-right: 12px; background: var(--system-gray-6);}
     .song-list-info-content { 
         flex: 1; 
@@ -126,7 +129,11 @@
         align-items: center; 
         justify-content: space-between; 
     }
-    .song-list-info { flex: 1; display: flex; flex-direction: column; }
+    .song-list-info { 
+        flex: 1; 
+        display: flex; 
+        flex-direction: column; 
+    }
     .song-list-title { font-size: 17px; display: flex; align-items: center; }
     .song-list-artist { font-size: 14px; color: var(--system-gray); }
     .song-menu-btn { color: var(--system-gray); font-size: 16px; padding: 10px; }
@@ -149,12 +156,12 @@
         overflow: hidden; 
         text-overflow: ellipsis; 
         white-space: nowrap; 
-        min-height: 1.2em; 
+        min-height: 1.2em; /* Ensure consistent height even if text is empty */
     }
     .grid-item-subtitle { 
         font-size: 14px; 
         color: var(--system-gray); 
-        min-height: 1.2em; 
+        min-height: 1.2em; /* Ensure consistent height even if text is empty */
     }
     
     .playlist-item { display: flex; align-items: center; padding: 8px 0; cursor: pointer; width: 100%; }
@@ -429,10 +436,10 @@
         if (!target) return;
         const action = target.dataset.action;
         
-        if (action) {
-            e.stopPropagation(); 
+        if (target.closest('#now-playing-bar') && (action === 'togglePlay' || action === 'nextSong')) {
+            e.stopPropagation();
         }
-
+        
         const actions = {
             'showView': () => UI.showView(`${target.dataset.view}-view`),
             'goBack': UI.goBack,
@@ -628,7 +635,7 @@
             const container = e.target.closest('.list-item-swipe-container');
             if(!container) return;
             this.resetAllSwipes(container);
-            this.target = container.querySelector('.list-item-swipe-content'); // Target the content itself
+            this.target = container.querySelector('.list-item-swipe-inner');
             this.startX = e.touches[0].clientX;
             this.currentX = this.startX;
             this.isSwiping = true;
@@ -641,32 +648,29 @@
             this.currentX = e.touches[0].clientX;
             let diff = this.currentX - this.startX;
 
-            if (diff > 0) diff = 0; // Prevent swiping right
-            if (diff < -this.actionsWidth) diff = -this.actionsWidth; // Limit swipe to actions width
+            if (diff > 0) diff = 0;
+            if (diff < -this.actionsWidth) diff = -this.actionsWidth;
 
             this.target.style.transform = `translateX(${diff}px)`;
-            e.preventDefault(); // Prevent vertical scrolling while swiping horizontally
         },
         handleTouchEnd() {
             if (!this.isSwiping || !this.target) return;
             let diff = this.currentX - this.startX;
             this.target.style.transition = 'transform 0.3s ease';
 
-            if (diff < -this.actionsWidth / 2) { // If swiped more than half way
+            if (diff < -this.actionsWidth / 2) {
                 this.target.style.transform = `translateX(-${this.actionsWidth}px)`;
             } else {
                 this.target.style.transform = 'translateX(0)';
             }
             this.isSwiping = false;
-            this.target = null; // Clear target
-            this.actionsElement = null; // Clear actions element
         },
         resetAllSwipes(exclude = null) {
             document.querySelectorAll('.list-item-swipe-container').forEach(container => {
                 if (container !== exclude) {
-                    const contentElement = container.querySelector('.list-item-swipe-content');
-                    if (contentElement) {
-                        contentElement.style.transform = 'translateX(0)';
+                    const innerContent = container.querySelector('.list-item-swipe-inner');
+                    if (innerContent) {
+                        innerContent.style.transform = 'translateX(0)';
                     }
                 }
             });
@@ -679,14 +683,7 @@
         playPlaylist(id){const songs=this.getPlaylistSongs(id);if(songs.length===0)return alert("This playlist is empty.");app.nowPlaying.queue=songs.map(s=>s.id);this.playFromQueue(0)},
         loadSong(song){app.nowPlaying.id=song.id;DOM.audio.src=URL.createObjectURL(song.file);DOM.audio.play().catch(e=>console.error("Audio play failed:",e));app.nowPlaying.isPlaying=!0;UI.updatePlayerUI();UI.showView('player-view')},
         togglePlay(){if(!app.nowPlaying.id)return;app.nowPlaying.isPlaying?DOM.audio.pause():DOM.audio.play();app.nowPlaying.isPlaying=!app.nowPlaying.isPlaying;UI.updatePlayIcons()},
-        nextSong(){
-            if(app.nowPlaying.queue.length === 0) {
-                console.warn("Queue is empty, cannot play next song.");
-                return;
-            }
-            const nextIndex=(app.nowPlaying.currentIndex+1)%app.nowPlaying.queue.length;
-            this.playFromQueue(nextIndex);
-        },
+        nextSong(){if(app.nowPlaying.queue.length===0)return;const nextIndex=(app.nowPlaying.currentIndex+1)%app.nowPlaying.queue.length;this.playFromQueue(nextIndex)},
         prevSong(){if(DOM.audio.currentTime>3||app.nowPlaying.currentIndex===0){DOM.audio.currentTime=0}else{const prevIndex=(app.nowPlaying.currentIndex-1+app.nowPlaying.queue.length)%app.nowPlaying.queue.length;this.playFromQueue(prevIndex)}},
         playFromQueue(index){if(app.nowPlaying.queue.length===0)return;const songId=app.nowPlaying.queue[index];const song=app.library.songs.find(s=>s.id===songId);if(song){app.nowPlaying.currentIndex=index;this.loadSong(song)}},
         seek(e){if(!app.nowPlaying.id)return;const rect=e.currentTarget.getBoundingClientRect();DOM.audio.currentTime=DOM.audio.duration*(e.clientX-rect.left)/rect.width},
@@ -748,7 +745,7 @@
         createListItem(item){const el=document.createElement("div");el.className="list-item",el.dataset.action="showSubView",el.dataset.type=item.type,el.innerHTML=`<div class="list-icon"><i class="fas ${item.icon}"></i></div><div class="list-text">${item.text}</div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`;return el},
         createPlaylistItem(playlist){
             const songCount=playlist.id==="favorites"?app.library.songs.filter(s=>s.isFavorite).length:playlist.songs.length;
-            const contentHTML=`
+            const itemHTML=`
                 <div class="playlist-item" data-action="showSubView" data-type="playlistDetail" data-id="${playlist.id}">
                     <div class="playlist-item-artwork" ${playlist.artwork==="FAVORITE"?'id="favorite-playlist-artwork"':`style="background-image:url(${playlist.artwork||'https://via.placeholder.com/150?text=Art'})"`}>
                         ${playlist.artwork==="FAVORITE"?'<i class="fas fa-star"></i>':''}
@@ -762,14 +759,16 @@
             const wrapper=document.createElement("div");
             wrapper.className="list-item-swipe-container";
             wrapper.innerHTML=`
-                <div class="list-item-swipe-content">
-                    ${contentHTML}
-                </div>
-                ${playlist.id!=="favorites" ? `
-                <div class="list-item-actions">
-                    <button class="list-action-btn action-edit" data-action="renamePlaylist" data-id="${playlist.id}">Rename</button>
-                    <button class="list-action-btn action-delete" data-action="deletePlaylist" data-id="${playlist.id}">Delete</button>
-                </div>` : ''}`;
+                <div class="list-item-swipe-inner">
+                    <div class="list-item-swipe-content playlist-swipe-content">
+                        ${itemHTML}
+                    </div>
+                    ${playlist.id!=="favorites" ? `
+                    <div class="list-item-actions">
+                        <button class="list-action-btn action-edit" data-action="renamePlaylist" data-id="${playlist.id}">Rename</button>
+                        <button class="list-action-btn action-delete" data-action="deletePlaylist" data-id="${playlist.id}">Delete</button>
+                    </div>` : ''}
+                </div>`;
             return wrapper;
         },
         createArtistListItem(name,artwork){const el=document.createElement("div");el.className="list-item",el.innerHTML=`<div class="list-icon"><img src="${artwork}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;"></div><div class="list-text">${name}</div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`;return el},
@@ -778,19 +777,21 @@
             const wrapper=document.createElement("div");
             wrapper.className="list-item-swipe-container";
             wrapper.innerHTML=`
-                <div class="list-item-swipe-content" data-action="playSong" data-id="${song.id}">
-                    <img class="song-list-artwork" src="${song.artwork}">
-                    <div class="song-list-info-content">
-                        <div class="song-list-info">
-                            <span class="song-list-title ${song.title.includes('[E]') ? 'explicit' : ''}">${song.title.replace(' [E]','')}</span>
-                            <span class="song-list-artist">${song.artist}</span>
+                <div class="list-item-swipe-inner">
+                    <div class="list-item-swipe-content" data-action="playSong" data-id="${song.id}">
+                        <img class="song-list-artwork" src="${song.artwork}">
+                        <div class="song-list-info-content">
+                            <div class="song-list-info">
+                                <span class="song-list-title ${song.title.includes('[E]') ? 'explicit' : ''}">${song.title.replace(' [E]','')}</span>
+                                <span class="song-list-artist">${song.artist}</span>
+                            </div>
+                            <i class="fas fa-ellipsis-h song-menu-btn"></i>
                         </div>
-                        <i class="fas fa-ellipsis-h song-menu-btn"></i>
                     </div>
-                </div>
-                <div class="list-item-actions">
-                    <button class="list-action-btn action-edit" data-action="editSong" data-id="${song.id}">Rename</button>
-                    <button class="list-action-btn action-delete" data-action="deleteSong" data-id="${song.id}">Delete</button>
+                    <div class="list-item-actions">
+                        <button class="list-action-btn action-edit" data-action="editSong" data-id="${song.id}">Rename</button>
+                        <button class="list-action-btn action-delete" data-action="deleteSong" data-id="${song.id}">Delete</button>
+                    </div>
                 </div>`;
             return wrapper;
         },
