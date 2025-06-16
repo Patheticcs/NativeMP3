@@ -34,15 +34,9 @@
     /* View Management */
     .view {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column;
-      transform: translateX(100%);
-      transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-      background: #000; z-index: 10;
+      opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; background: #000; z-index: 10;
     }
-    .view.active { transform: translateX(0); z-index: 20; }
-    .view.main-view { transition: opacity 0.2s; }
-    .view.inactive-left { transform: translateX(-30%); transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
-    .view.main-view.active { transform: translateX(0); opacity: 1; visibility: visible; }
-    .view.main-view:not(.active) { opacity: 0; visibility: hidden; }
+    .view.active { opacity: 1; visibility: visible; z-index: 20; }
 
     /* Header Styles */
     .header { padding: var(--safe-area-top) 20px 10px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; }
@@ -344,7 +338,6 @@
 
     const app = {
         db: null,
-        navStack: ['library'], // Start with the library view
         nowPlaying: { id: null, queue: [], currentIndex: -1, isPlaying: false },
         library: { songs: [], playlists: [], artists: {}, albums: {} },
         uploadData: { songFile: null, artworkBase64: null },
@@ -352,14 +345,14 @@
     };
 
     const DOM = {
-        mainViews: document.querySelectorAll('.main-view'),
-        subView: document.getElementById('sub-view'),
+        views: document.querySelectorAll('.view'),
         fullPlayer: document.getElementById('full-player'),
         audio: document.getElementById('audio'),
         uploadSheet: document.getElementById('upload-sheet'),
         uploadModalOverlay: document.getElementById('upload-modal-overlay'),
         playlistSheet: document.getElementById('create-playlist-sheet'),
         playlistModalOverlay: document.getElementById('playlist-modal-overlay'),
+        subView: document.getElementById('sub-view'),
         loadingOverlay: document.getElementById('loading-overlay'),
     };
 
@@ -367,7 +360,7 @@
         DB.init().then(() => {
             Library.loadAllData().then(() => {
                 UI.renderAll();
-                UI.showView('library', true); // Initial view without animation
+                Router.handleRouteChange(); // Handle initial route
             });
         });
         setupEventListeners();
@@ -375,6 +368,7 @@
 
     function setupEventListeners() {
         document.body.addEventListener('click', handleAction);
+        window.addEventListener('hashchange', Router.handleRouteChange);
         DOM.audio.addEventListener('timeupdate', Player.updateProgress);
         DOM.audio.addEventListener('loadedmetadata', Player.updateProgress);
         DOM.audio.addEventListener('ended', Player.nextSong);
@@ -401,39 +395,40 @@
         document.getElementById('music-file-input').addEventListener('change', e => Upload.handleSongFileSelect(e));
         document.getElementById('playlist-artwork-input').addEventListener('change', e => Playlist.handleArtworkFileSelect(e));
         document.getElementById('search-input').addEventListener('input', e => UI.handleSearch(e));
-
         document.getElementById('sub-view-content').addEventListener('contextmenu', e => UI.handleContextMenu(e));
     }
     
     function handleAction(e) {
         const target = e.target.closest('[data-action]');
         if (!target) return;
-        
-        if (Date.now() - (target.lastSwipeTime || 0) < 300) {
-            e.stopPropagation(); e.preventDefault(); return;
-        }
+        if (Date.now() - (target.lastSwipeTime || 0) < 300) { e.stopPropagation(); e.preventDefault(); return; }
         
         const action = target.dataset.action;
         if (action) e.stopPropagation();
 
         const actions = {
-            'showView': () => UI.showView(target.dataset.view),
-            'goBack': UI.goBack,
-            'openUploadModal': Upload.openModal, 'closeUploadModal': Upload.closeModal,
-            'openCreatePlaylistModal': Playlist.openModal, 'closeCreatePlaylistModal': Playlist.closeModal,
+            'showView': () => Router.navigate(target.dataset.view),
+            'goBack': Router.back,
+            'openUploadModal': Upload.openModal,
+            'closeUploadModal': Upload.closeModal,
+            'openCreatePlaylistModal': Playlist.openModal,
+            'closeCreatePlaylistModal': Playlist.closeModal,
             'triggerArtworkUpload': () => document.getElementById('artwork-input').click(),
             'triggerSongUpload': () => document.getElementById('music-file-input').click(),
             'triggerPlaylistArtworkUpload': () => document.getElementById('playlist-artwork-input').click(),
             'submitUpload': Upload.submit,
             'submitCreatePlaylist': Playlist.submit,
-            'showSubView': () => UI.showSubView(target.dataset.type, { prevViewId: app.navStack[app.navStack.length - 1] }),
-            'viewPlaylist': () => UI.showSubView('playlistDetail', { playlistId: parseInt(target.dataset.id), prevViewId: 'playlists' }),
+            'showSubView': () => Router.navigate(target.dataset.type),
+            'viewPlaylist': () => Router.navigate(`playlist/${target.dataset.id}`),
             'playSong': () => Player.playSong(parseInt(target.dataset.id), target.dataset.playlistId ? parseInt(target.dataset.playlistId) : null),
             'playAlbum': () => Player.playAlbum(target.dataset.album),
             'togglePlay': Player.togglePlay,
-            'nextSong': Player.nextSong, 'prevSong': Player.prevSong,
-            'showFullPlayer': UI.showFullPlayer, 'hideFullPlayer': UI.hideFullPlayer,
-            'seek': Player.seek, 'setVolume': Player.setVolume,
+            'nextSong': Player.nextSong,
+            'prevSong': Player.prevSong,
+            'showFullPlayer': UI.showFullPlayer,
+            'hideFullPlayer': UI.hideFullPlayer,
+            'seek': Player.seek,
+            'setVolume': Player.setVolume,
             'deleteSong': () => Library.deleteSong(parseInt(target.dataset.id)),
             'renamePlaylist': () => Library.renamePlaylist(parseInt(target.dataset.id)),
             'deletePlaylist': () => Library.deletePlaylist(parseInt(target.dataset.id)),
@@ -674,7 +669,9 @@
             let deltaX = this.touch.currentX - this.touch.startX;
             if (deltaX < 10) { 
                 e.preventDefault();
-                const actionsWidth = this.touch.listItem.querySelector('.swipe-actions').offsetWidth;
+                const actions = this.touch.listItem.querySelector('.swipe-actions');
+                if (!actions) { this.touch.isDragging = false; return; }
+                const actionsWidth = actions.offsetWidth;
                 const limitedX = Math.max(deltaX, -actionsWidth);
                 this.touch.target.style.transform = `translateX(${limitedX}px)`;
             }
@@ -683,7 +680,9 @@
             if (!this.touch.isDragging) return;
             this.touch.target.classList.remove('no-transition');
             const deltaX = this.touch.currentX - this.touch.startX;
-            const actionsWidth = this.touch.listItem.querySelector('.swipe-actions').offsetWidth;
+            const actions = this.touch.listItem.querySelector('.swipe-actions');
+            if (!actions) { this.touch.isDragging = false; return; }
+            const actionsWidth = actions.offsetWidth;
             const threshold = actionsWidth / 2;
             
             if (deltaX < -threshold) {
@@ -814,49 +813,47 @@
         }
     };
     
+    const Router = {
+        navigate(hash) {
+            window.location.hash = hash;
+        },
+        back() {
+            window.history.back();
+        },
+        handleRouteChange() {
+            const hash = window.location.hash.slice(1) || 'library';
+            const [viewId, param] = hash.split('/');
+            
+            const mainViews = ['library', 'search'];
+            if (mainViews.includes(viewId)) {
+                UI.showView(viewId);
+            } else {
+                const subViewTypes = ['playlists', 'artists', 'albums', 'songs', 'playlistDetail'];
+                if(subViewTypes.includes(viewId)) {
+                    const data = viewId === 'playlistDetail' ? { playlistId: parseInt(param) } : {};
+                    UI.showSubView(viewId, data);
+                } else {
+                    UI.showView('library');
+                }
+            }
+        }
+    };
+
     const UI = {
         showLoading: (show) => DOM.loadingOverlay.classList.toggle('active', show),
-        showView(viewId, isInitial = false) {
+        showView(viewId) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             const newActive = document.getElementById(`${viewId}-view`);
-            if (!newActive) return;
-
-            if (isInitial) {
-                newActive.style.transition = 'none';
-                DOM.mainViews.forEach(v => v.classList.remove('active', 'inactive-left'));
-                newActive.classList.add('active');
-                setTimeout(() => newActive.style.transition = '', 50);
-            } else {
-                const currentActive = document.querySelector('.view.active');
-                if (currentActive) {
-                    currentActive.classList.remove('active');
-                }
-                newActive.classList.remove('inactive-left');
-                newActive.classList.add('active');
-            }
-
+            if(newActive) newActive.classList.add('active');
+            
             document.querySelectorAll('.tab-item').forEach(t => t.classList.toggle('active', t.dataset.view === viewId));
         },
         goBack() {
-            const previousViewId = app.navStack.pop();
-            if (previousViewId) {
-                const currentActive = document.querySelector('.view.active');
-                if (currentActive) currentActive.classList.remove('active');
-
-                const newActive = document.getElementById(`${previousViewId}-view`);
-                newActive.classList.remove('inactive-left');
-                newActive.classList.add('active');
-            } else {
-                 this.showView('library');
-            }
+             Router.back();
         },
         showSubView(type, data = {}) {
-            const currentActive = document.querySelector('.view.active');
-            if(currentActive) app.navStack.push(currentActive.id.replace('-view', ''));
-            
             this.renderSubView(type, data);
-            
-            if(currentActive) currentActive.classList.add('inactive-left');
-            DOM.subView.classList.remove('inactive-left'); // Ensure it slides in from the right
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             DOM.subView.classList.add('active');
         },
         showFullPlayer() { if (app.nowPlaying.id) DOM.fullPlayer.classList.add('active'); },
