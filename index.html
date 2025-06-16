@@ -77,20 +77,38 @@
     .action-btn { flex: 1; background: var(--fill-tertiary); border: none; border-radius: 8px; color: #fff; padding: 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
 
     /* List View Styles */
-    .list-item { display: flex; align-items: center; padding: 11px 20px; border-bottom: 1px solid var(--border-color); cursor: pointer; }
-    .list-item:first-child { border-top: 1px solid var(--border-color); }
+    .list-item-wrapper { position: relative; overflow: hidden; }
+    .list-item-content {
+        position: relative; z-index: 2; display: flex; align-items: center; padding: 11px 20px;
+        background-color: #000; transition: transform 0.3s ease; border-bottom: 1px solid var(--border-color);
+    }
+    .list-item-wrapper:first-child .list-item-content { border-top: 1px solid var(--border-color); }
     .list-icon { color: var(--system-pink); width: 30px; font-size: 22px; margin-right: 15px; text-align: center; }
     .list-text { flex: 1; font-size: 17px; }
     .list-arrow { color: var(--system-gray); font-size: 14px; }
-    .song-list-item { display: flex; align-items: center; padding: 0 20px; cursor: pointer; }
+    
+    .swipeable-list-item { position: relative; overflow: hidden; cursor: pointer; }
+    .swipe-content {
+        position: relative; z-index: 2; display: flex; align-items: center; padding: 0 20px;
+        background-color: #000; transition: transform 0.3s ease;
+    }
     .song-list-artwork { width: 44px; height: 44px; border-radius: 4px; object-fit: cover; margin-right: 12px; background: var(--system-gray-6);}
     .song-list-info { flex: 1; display: flex; flex-direction: column; }
     .song-list-info-container { flex: 1; display: flex; align-items: center; border-bottom: 1px solid var(--border-color); padding: 8px 0; }
-    .song-list-item:last-child .song-list-info-container { border-bottom: none; }
+    .swipeable-list-item:last-child .song-list-info-container { border-bottom: none; }
     .song-list-title { font-size: 17px; display: flex; align-items: center; }
     .song-list-artist { font-size: 14px; color: var(--system-gray); }
     .explicit-tag { font-size: 9px; border: 1px solid var(--system-gray); color: var(--system-gray); border-radius: 2px; padding: 0 2px; margin-left: 6px; }
     .song-menu-btn { color: var(--system-gray); font-size: 16px; padding: 10px; }
+    .swipe-actions {
+        position: absolute; top: 0; right: 0; height: 100%; display: flex; z-index: 1;
+    }
+    .swipe-action-btn {
+        background-color: var(--system-gray); color: white; border: none;
+        display: flex; align-items: center; justify-content: center;
+        width: 80px; font-size: 16px; font-weight: 500;
+    }
+    .swipe-action-btn.delete { background-color: var(--system-red); }
 
     /* Grid & Carousel */
     .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 0 20px; }
@@ -100,7 +118,6 @@
     .grid-item-subtitle { font-size: 14px; color: var(--system-gray); }
     
     /* Playlists View */
-    .playlist-item { display: flex; align-items: center; padding: 8px 20px; border-bottom: 1px solid var(--border-color); cursor: pointer; }
     .playlist-item-artwork { width: 54px; height: 54px; border-radius: 4px; object-fit: cover; margin-right: 15px; display: flex; align-items: center; justify-content: center; background: #1c1c1e; }
     #favorite-playlist-artwork { background: linear-gradient(135deg, #ff2d55, #ff5e3a); }
     #favorite-playlist-artwork .fa-star { font-size: 28px; }
@@ -296,7 +313,6 @@
 
     const app = {
         db: null,
-        navStack: [],
         nowPlaying: { id: null, queue: [], currentIndex: -1, isPlaying: false },
         library: { songs: [], playlists: [], artists: {}, albums: {} },
         uploadData: { songFile: null, artworkBase64: null },
@@ -372,6 +388,9 @@
             'hideFullPlayer': UI.hideFullPlayer,
             'seek': Player.seek,
             'setVolume': Player.setVolume,
+            'deleteSong': () => Library.deleteSong(parseInt(target.dataset.id)),
+            'renamePlaylist': () => Library.renamePlaylist(parseInt(target.dataset.id)),
+            'deletePlaylist': () => Library.deletePlaylist(parseInt(target.dataset.id)),
         };
         
         if (actions[action]) actions[action](e);
@@ -379,7 +398,7 @@
       
     const DB = {
         init: () => new Promise(resolve => {
-            const request = indexedDB.open("AppleMusicDB_v9_Final", 1);
+            const request = indexedDB.open("AppleMusicDB_v10_Final", 1);
             request.onupgradeneeded = e => {
                 const db = e.target.result;
                 if (!db.objectStoreNames.contains("songs")) db.createObjectStore("songs", { keyPath: "id", autoIncrement: true });
@@ -388,6 +407,8 @@
             request.onsuccess = e => { app.db = e.target.result; resolve(); };
         }),
         add: (store, item) => new Promise(res => app.db.transaction(store, 'readwrite').objectStore(store).add(item).onsuccess = res),
+        put: (store, item) => new Promise(res => app.db.transaction(store, 'readwrite').objectStore(store).put(item).onsuccess = res),
+        delete: (store, id) => new Promise(res => app.db.transaction(store, 'readwrite').objectStore(store).delete(id).onsuccess = res),
         getAll: store => new Promise(res => app.db.transaction(store).objectStore(store).getAll().onsuccess = e => res(e.target.result)),
     };
       
@@ -396,7 +417,30 @@
             [app.library.songs, app.library.playlists] = await Promise.all([DB.getAll("songs"), DB.getAll("playlists")]);
             this.processLibrary();
         },
-        processLibrary() { /* ... unchanged ... */ }
+        processLibrary() { /* ... unchanged ... */ },
+        async deleteSong(id) {
+            await DB.delete('songs', id);
+            await this.loadAllData();
+            UI.renderSubView('songs');
+        },
+        async renamePlaylist(id) {
+            const playlist = app.library.playlists.find(p => p.id === id);
+            if (!playlist) return;
+            const newName = prompt("Enter new playlist name:", playlist.name);
+            if(newName?.trim()) {
+                playlist.name = newName.trim();
+                await DB.put('playlists', playlist);
+                await this.loadAllData();
+                UI.renderSubView('playlists');
+            }
+        },
+        async deletePlaylist(id) {
+            if (confirm("Are you sure you want to delete this playlist?")) {
+                await DB.delete('playlists', id);
+                await this.loadAllData();
+                UI.renderSubView('playlists');
+            }
+        }
     };
     Library.processLibrary = function() {
         app.library.artists = {}; app.library.albums = {};
@@ -425,32 +469,8 @@
             document.getElementById('song-file-name').textContent = 'No file selected.';
             app.uploadData = { songFile: null, artworkBase64: null };
         },
-        handleSongFileSelect(e) {
-            app.uploadData.songFile = e.target.files[0];
-            if (!app.uploadData.songFile) return;
-            document.getElementById('song-file-name').textContent = app.uploadData.songFile.name;
-            jsmediatags.read(app.uploadData.songFile, {
-                onSuccess: ({ tags }) => {
-                    if (tags.title) document.getElementById('song-title-input').value = tags.title;
-                    if (tags.artist) document.getElementById('song-artist-input').value = tags.artist;
-                    if (tags.album) document.getElementById('song-album-input').value = tags.album;
-                    if (tags.picture) {
-                        const base64String = btoa(String.fromCharCode.apply(null, tags.picture.data));
-                        app.uploadData.artworkBase64 = `data:${tags.picture.format};base64,${base64String}`;
-                        document.getElementById('upload-artwork-preview').src = app.uploadData.artworkBase64;
-                    }
-                }
-            });
-        },
-        handleArtworkFileSelect(e) {
-            const file = e.target.files[0]; if (!file) return;
-            const reader = new FileReader();
-            reader.onload = re => {
-                app.uploadData.artworkBase64 = re.target.result;
-                document.getElementById('upload-artwork-preview').src = app.uploadData.artworkBase64;
-            };
-            reader.readAsDataURL(file);
-        },
+        handleSongFileSelect(e) { /* ... unchanged ... */ },
+        handleArtworkFileSelect(e) { /* ... unchanged ... */ },
         async submit() {
             const song = {
                 title: document.getElementById('song-title-input').value,
@@ -469,7 +489,8 @@
             this.closeModal();
         }
     };
-    
+    Upload.handleSongFileSelect=function(e){app.uploadData.songFile=e.target.files[0],app.uploadData.songFile&&(document.getElementById("song-file-name").textContent=app.uploadData.songFile.name,jsmediatags.read(app.uploadData.songFile,{onSuccess:({tags})=>{tags.title&&(document.getElementById("song-title-input").value=tags.title),tags.artist&&(document.getElementById("song-artist-input").value=tags.artist),tags.album&&(document.getElementById("song-album-input").value=tags.album),tags.picture&&(app.uploadData.artworkBase64=`data:${tags.picture.format};base64,${btoa(String.fromCharCode.apply(null,tags.picture.data))}`,document.getElementById("upload-artwork-preview").src=app.uploadData.artworkBase64)}}))},Upload.handleArtworkFileSelect=function(e){const t=e.target.files[0];if(!t)return;const a=new FileReader;a.onload=e=>{app.uploadData.artworkBase64=e.target.result,document.getElementById("upload-artwork-preview").src=app.uploadData.artworkBase64},a.readAsDataURL(t)};
+
     const Playlist = {
         openModal: () => {
             DOM.playlistSheet.classList.add('active');
@@ -499,8 +520,7 @@
             if (!name.trim()) { alert("Please enter a playlist name."); return; }
             UI.showLoading(true);
             const playlist = {
-                name,
-                songs: [],
+                name, songs: [],
                 artwork: app.playlistData.artworkBase64,
                 createdAt: Date.now(),
             };
@@ -511,162 +531,85 @@
             this.closeModal();
         }
     };
-
+    
     class SwipeHandler {
-        constructor() {
-            this.touch = { startY: 0, currentY: 0, isDragging: false, target: null, onDismiss: null };
-        }
+        constructor() { this.touch = {}; }
         handleTouchStart(e, targetElement, onDismissCallback) {
-            if (e.target.closest('.progress-container, .volume-container, .player-controls, .form-group, button')) return;
+            if (e.target.closest('.progress-container, .volume-container, .player-controls, .form-group, button, .swipe-actions')) return;
+            this.resetAllSwipes();
             this.touch = {
                 isDragging: true, target: targetElement, onDismiss: onDismissCallback,
-                startY: e.touches[0].clientY, currentY: e.touches[0].clientY,
+                startX: e.touches[0].clientX, startY: e.touches[0].clientY,
             };
             this.touch.target.classList.add('no-transition');
+            if (this.touch.target.classList.contains('swipe-content')) {
+                this.touch.listItem = this.touch.target.parentElement;
+            }
         }
         handleTouchMove(e) {
             if (!this.touch.isDragging) return;
+            this.touch.currentX = e.touches[0].clientX;
             this.touch.currentY = e.touches[0].clientY;
-            let deltaY = this.touch.currentY - this.touch.startY;
-            if (deltaY > -50) { // Allow slight upward movement
-                e.preventDefault();
-                this.touch.target.style.transform = `translateY(${deltaY}px)`;
+            const deltaX = this.touch.currentX - this.touch.startX;
+            const deltaY = this.touch.currentY - this.touch.startY;
+
+            if (this.touch.target.classList.contains('bottom-sheet') || this.touch.target.classList.contains('full-player')) {
+                if (deltaY > 0) { e.preventDefault(); this.touch.target.style.transform = `translateY(${deltaY}px)`; }
+            } else if (this.touch.target.classList.contains('swipe-content')) {
+                if (Math.abs(deltaX) > Math.abs(deltaY) && deltaX < 0) {
+                    e.preventDefault();
+                    const limitedX = Math.max(deltaX, -this.touch.listItem.querySelector('.swipe-actions').offsetWidth);
+                    this.touch.target.style.transform = `translateX(${limitedX}px)`;
+                }
             }
         }
         handleTouchEnd() {
             if (!this.touch.isDragging) return;
-            let deltaY = this.touch.currentY - this.touch.startY;
-            this.touch.target.classList.remove('no-transition');
-            if (deltaY > 100) { this.touch.onDismiss(); } 
-            else { this.touch.target.style.transform = ''; }
             this.touch.isDragging = false;
+            this.touch.target.classList.remove('no-transition');
+
+            if (this.touch.target.classList.contains('bottom-sheet') || this.touch.target.classList.contains('full-player')) {
+                const deltaY = this.touch.currentY - this.touch.startY;
+                if (deltaY > 100) { this.touch.onDismiss(); } 
+                else { this.touch.target.style.transform = ''; }
+            } else if (this.touch.target.classList.contains('swipe-content')) {
+                const deltaX = this.touch.currentX - this.touch.startX;
+                const threshold = this.touch.listItem.querySelector('.swipe-actions').offsetWidth / 2;
+                if (deltaX < -threshold) {
+                    this.touch.target.style.transform = `translateX(-${this.touch.listItem.querySelector('.swipe-actions').offsetWidth}px)`;
+                } else {
+                    this.touch.target.style.transform = 'translateX(0)';
+                }
+            }
+        }
+        resetAllSwipes() {
+            document.querySelectorAll('.swipe-content').forEach(el => el.style.transform = 'translateX(0)');
         }
     }
 
-    const Player = {
-        playSong(songId) {
-            const songIndex = app.library.songs.findIndex(s => s.id === songId);
-            if (songIndex === -1) return;
-            app.nowPlaying.queue = app.library.songs.map(s => s.id);
-            this.playFromQueue(songIndex);
-        },
-        playAlbum(albumName) {
-            const album = app.library.albums[albumName];
-            if (!album || album.songs.length === 0) return;
-            app.nowPlaying.queue = album.songs.map(s => s.id);
-            this.playFromQueue(0);
-        },
-        loadSong(song) {
-            app.nowPlaying.id = song.id;
-            DOM.audio.src = URL.createObjectURL(song.file);
-            DOM.audio.play().catch(e => console.error("Audio play failed:", e));
-            app.nowPlaying.isPlaying = true;
-            UI.updatePlayerUI();
-        },
-        togglePlay() {
-            if (!app.nowPlaying.id) return;
-            app.nowPlaying.isPlaying ? DOM.audio.pause() : DOM.audio.play();
-            app.nowPlaying.isPlaying = !app.nowPlaying.isPlaying;
-            UI.updatePlayIcons();
-        },
-        nextSong() {
-            if (app.nowPlaying.queue.length === 0) return;
-            const nextIndex = (app.nowPlaying.currentIndex + 1) % app.nowPlaying.queue.length;
-            this.playFromQueue(nextIndex);
-        },
-        prevSong() {
-            if (DOM.audio.currentTime > 3 || app.nowPlaying.currentIndex === 0) {
-                DOM.audio.currentTime = 0;
-            } else {
-                const prevIndex = (app.nowPlaying.currentIndex - 1 + app.nowPlaying.queue.length) % app.nowPlaying.queue.length;
-                this.playFromQueue(prevIndex);
-            }
-        },
-        playFromQueue(index) {
-            if (app.nowPlaying.queue.length === 0) return;
-            const songId = app.nowPlaying.queue[index];
-            const song = app.library.songs.find(s => s.id === songId);
-            if (song) {
-                app.nowPlaying.currentIndex = index;
-                this.loadSong(song);
-            }
-        },
-        seek: e => { /* ... unchanged ... */ },
-        setVolume: e => { /* ... unchanged ... */ },
-        updateProgress: () => { /* ... unchanged ... */ },
-        formatTime: s => `${Math.floor(s/60)}:${Math.floor(s%60).toString().padStart(2,'0')}`,
-    };
-    Player.seek = function(e){ if(!app.nowPlaying.id)return;const t=e.currentTarget.getBoundingClientRect();DOM.audio.currentTime=DOM.audio.duration*(e.clientX-t.left)/t.width };
-    Player.setVolume = function(e){ const t=e.currentTarget.getBoundingClientRect();DOM.audio.volume=(e.clientX-t.left)/t.width,document.getElementById("volume-fill").style.width=`${100*DOM.audio.volume}%`};
-    Player.updateProgress = function(){ if(!DOM.audio.duration)return;const{currentTime:e,duration:t}=DOM.audio;document.getElementById("progress-fill").style.width=`${e/t*100}%`,document.getElementById("current-time").textContent=Player.formatTime(e),document.getElementById("total-time").textContent=`-${Player.formatTime(t-e)}`};
+    const Player = { /* ... unchanged ... */ };
+    Player.playSong=function(e){const t=app.library.songs.findIndex(t=>t.id===e);-1!==t&&(app.nowPlaying.queue=app.library.songs.map(e=>e.id),this.playFromQueue(t))},Player.playAlbum=function(e){const t=app.library.albums[e];t&&0!==t.songs.length&&(app.nowPlaying.queue=t.songs.map(e=>e.id),this.playFromQueue(0))},Player.loadSong=function(e){app.nowPlaying.id=e.id,DOM.audio.src=URL.createObjectURL(e.file),DOM.audio.play().catch(e=>console.error("Audio play failed:",e)),app.nowPlaying.isPlaying=!0,UI.updatePlayerUI()},Player.togglePlay=function(){app.nowPlaying.id&&(app.nowPlaying.isPlaying?DOM.audio.pause():DOM.audio.play(),app.nowPlaying.isPlaying=!app.nowPlaying.isPlaying,UI.updatePlayIcons())},Player.nextSong=function(){if(0!==app.nowPlaying.queue.length){const e=(app.nowPlaying.currentIndex+1)%app.nowPlaying.queue.length;this.playFromQueue(e)}},Player.prevSong=function(){DOM.audio.currentTime>3||0===app.nowPlaying.currentIndex?DOM.audio.currentTime=0:this.playFromQueue((app.nowPlaying.currentIndex-1+app.nowPlaying.queue.length)%app.nowPlaying.queue.length)},Player.playFromQueue=function(e){if(0!==app.nowPlaying.queue.length){const t=app.nowPlaying.queue[e],a=app.library.songs.find(e=>e.id===t);a&&(app.nowPlaying.currentIndex=e,this.loadSong(a))}},Player.seek=function(e){if(!app.nowPlaying.id)return;const t=e.currentTarget.getBoundingClientRect();DOM.audio.currentTime=DOM.audio.duration*(e.clientX-t.left)/t.width},Player.setVolume=function(e){const t=e.currentTarget.getBoundingClientRect();DOM.audio.volume=(e.clientX-t.left)/t.width,document.getElementById("volume-fill").style.width=`${100*DOM.audio.volume}%`},Player.updateProgress=function(){if(!DOM.audio.duration)return;const{currentTime:e,duration:t}=DOM.audio;document.getElementById("progress-fill").style.width=`${e/t*100}%`,document.getElementById("current-time").textContent=Player.formatTime(e),document.getElementById("total-time").textContent=`-${Player.formatTime(t-e)}`},Player.formatTime=e=>`${Math.floor(e/60)}:${Math.floor(e%60).toString().padStart(2,"0")}`;
     
     const UI = {
         showLoading: (show) => DOM.loadingOverlay.classList.toggle('active', show),
         showView(viewId) {
             DOM.views.forEach(v => v.classList.toggle('active', v.id === `${viewId}-view`));
             document.querySelectorAll('.tab-item').forEach(t => t.classList.toggle('active', t.dataset.view === viewId));
-            app.navStack = [{ type: 'main', id: viewId }];
             DOM.subView.classList.remove('active');
         },
-        goBack() {
-            this.showView('library');
-        },
+        goBack() { this.showView('library'); },
         showSubView(type) {
+            this.renderSubView(type);
             DOM.views.forEach(v => v.classList.remove('active'));
             DOM.subView.classList.add('active');
-            this.renderSubView(type);
         },
         showFullPlayer() { if (app.nowPlaying.id) DOM.fullPlayer.classList.add('active'); },
         hideFullPlayer() { DOM.fullPlayer.classList.remove('active'); },
-        updatePlayerUI() {
-            const bar = document.getElementById('now-playing-bar');
-            if (!app.nowPlaying.id) { bar.classList.remove('active'); return; }
-            bar.classList.add('active');
-            this.updatePlayIcons();
-            const song = app.library.songs.find(s => s.id === app.nowPlaying.id);
-            if (!song) return;
-            
-            ['np-artwork', 'player-artwork'].forEach(id => document.getElementById(id).src = song.artwork);
-            ['np-title', 'player-title'].forEach(id => document.getElementById(id).textContent = song.title);
-            document.getElementById('player-artist').textContent = song.artist;
-            this.updatePlayerBackground(song.artwork);
-        },
-        updatePlayIcons() {
-            const isPlaying = app.nowPlaying.isPlaying;
-            document.getElementById('np-play-icon').className = `fas ${isPlaying ? 'fa-pause' : 'fa-play'}`;
-            document.getElementById('main-play-icon').className = `fas ${isPlaying ? 'fa-pause-circle' : 'fa-play-circle'}`;
-        },
-        updatePlayerBackground(imgSrc) {
-            const img = new Image; img.crossOrigin = "Anonymous"; img.src = imgSrc;
-            img.onload = () => {
-                const c=document.createElement("canvas"), ctx=c.getContext("2d"); ctx.drawImage(img,0,0,1,1);
-                const [r,g,b] = ctx.getImageData(0,0,1,1).data;
-                DOM.fullPlayer.style.backgroundImage = `linear-gradient(to bottom, rgb(${r},${g},${b}) 0%, #000 70%)`;
-            };
-            img.onerror = () => { DOM.fullPlayer.style.backgroundImage = 'linear-gradient(to bottom, #222 0%, #000 70%)'};
-        },
+        updatePlayerUI() { /* ... unchanged ... */ },
+        updatePlayIcons() { /* ... unchanged ... */ },
+        updatePlayerBackground(imgSrc) { /* ... unchanged ... */ },
         renderAll() { this.renderLibraryView(); },
-        renderLibraryView() {
-            const container = document.getElementById('library-content');
-            container.innerHTML = `<div id="library-nav-list"></div><div class="section-header"><h2>Recently Added</h2></div><div class="grid" id="library-recent-grid"></div>`;
-            const navList = container.querySelector('#library-nav-list');
-            [
-                { type: 'playlists', icon: 'fa-list-music', text: 'Playlists' },
-                { type: 'artists', icon: 'fa-microphone-alt', text: 'Artists' },
-                { type: 'albums', icon: 'fa-compact-disc', text: 'Albums' },
-                { type: 'songs', icon: 'fa-music', text: 'Songs' },
-            ].forEach(item => navList.appendChild(this.createListItem(item)));
-            const recentGrid = container.querySelector('#library-recent-grid');
-            const recentSongs = [...app.library.songs].sort((a,b)=>b.addedAt-a.addedAt).slice(0,4);
-            recentGrid.innerHTML = '';
-            const sectionHeader = container.querySelector('.section-header');
-            if (recentSongs.length > 0) {
-                sectionHeader.classList.remove('hidden');
-                recentSongs.forEach(song => recentGrid.appendChild(this.createGridItem(song, 'playSong')));
-            } else {
-                sectionHeader.classList.add('hidden');
-            }
-        },
+        renderLibraryView() { /* ... unchanged ... */ },
         renderSubView(type) {
             const titleMap = { playlists: 'Playlists', artists: 'Artists', albums: 'Albums', songs: 'Songs' };
             document.getElementById('sub-view-title').textContent = titleMap[type];
@@ -676,57 +619,21 @@
             const contentContainer = document.getElementById('sub-view-content');
             contentContainer.innerHTML = `<div class="search-bar"><input type="text" class="search-input" placeholder="Search in ${titleMap[type]}"></div>`;
             
-            const rendererMap = {
-                'playlists': this.renderPlaylistsView, 'artists': this.renderArtistsView,
-                'albums': this.renderAlbumsView, 'songs': this.renderSongsView,
-            };
+            const rendererMap = {'playlists': this.renderPlaylistsView, 'artists': this.renderArtistsView, 'albums': this.renderAlbumsView, 'songs': this.renderSongsView};
             if(rendererMap[type]) rendererMap[type].call(this, contentContainer);
         },
-        renderPlaylistsView(container) {
-             const frag = document.createDocumentFragment();
-             const fav = document.createElement('div');
-             fav.className = 'playlist-item';
-             fav.innerHTML = `<div class="playlist-item-artwork" id="favorite-playlist-artwork"><i class="fas fa-star"></i></div><div class="playlist-info"><div class="playlist-title">Favorite Songs</div></div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`;
-             frag.appendChild(fav);
-
-             app.library.playlists.forEach(p => frag.appendChild(this.createPlaylistItem(p)));
-             if (app.library.playlists.length === 0 && !container.querySelector('.playlist-item')) {
-                container.innerHTML += '<p class="empty-state">No playlists. Create one with the + button.</p>';
-             }
-             container.appendChild(frag);
-        },
-        renderArtistsView(container) {
-            const artists = Object.keys(app.library.artists).sort();
-            if (artists.length === 0) { container.innerHTML += '<p class="empty-state">No artists found.</p>'; return; }
-            artists.forEach(name => container.appendChild(this.createArtistListItem(name, app.library.artists[name][0].artwork)));
-        },
-        renderAlbumsView(container) {
-            const albums = Object.keys(app.library.albums).sort();
-            if (albums.length === 0) { container.innerHTML += '<p class="empty-state">No albums found.</p>'; return; }
-            container.innerHTML += `<div class="action-buttons"><button class="action-btn">Play</button><button class="action-btn">Shuffle</button></div>`;
-            const grid = document.createElement('div');
-            grid.className = 'grid';
-            albums.forEach(name => grid.appendChild(this.createGridItem(app.library.albums[name], 'playAlbum', name)));
-            container.appendChild(grid);
-        },
-        renderSongsView(container) {
-            const songs = app.library.songs;
-            if (songs.length === 0) { container.innerHTML += '<p class="empty-state">No songs found.</p>'; return; }
-            container.innerHTML += `<div class="action-buttons"><button class="action-btn">Play</button><button class="action-btn">Shuffle</button></div>`;
-            songs.forEach(song => container.appendChild(this.createSongListItem(song)));
-        },
-        createListItem: (item) => { /* ... unchanged ... */ },
-        createPlaylistItem: (playlist) => {
-            const div = document.createElement('div'); div.className = 'playlist-item';
-            div.innerHTML = `<div class="playlist-item-artwork"><img src="${playlist.artwork || 'https://via.placeholder.com/54'}" /></div><div class="playlist-info"><div class="playlist-title">${playlist.name}</div><div class="playlist-subtitle">${playlist.songs.length} songs</div></div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`;
-            return div;
-        },
-        createArtistListItem: (name, artwork) => { /* ... unchanged ... */ },
-        createGridItem: (item, action, name) => { /* ... unchanged ... */ },
-        createSongListItem: (song) => { /* ... unchanged ... */ },
-        handleSearch: (e) => { /* ... unchanged ... */ },
+        renderPlaylistsView(container) { /* ... */ },
+        renderArtistsView(container) { /* ... */ },
+        renderAlbumsView(container) { /* ... */ },
+        renderSongsView(container) { /* ... */ },
+        createListItem: (item) => { /* ... */ },
+        createPlaylistItem: (playlist) => { /* ... */ },
+        createArtistListItem: (name, artwork) => { /* ... */ },
+        createGridItem: (item, action, name) => { /* ... */ },
+        createSongListItem: (song) => { /* ... */ },
+        handleSearch: (e) => { /* ... */ },
     };
-    UI.createListItem=function(e){const t=document.createElement("div");return t.className="list-item",t.dataset.action="showSubView",t.dataset.type=e.type,t.innerHTML=`<div class="list-icon"><i class="fas ${e.icon}"></i></div><div class="list-text">${e.text}</div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`,t},UI.createArtistListItem=function(e,t){const a=document.createElement("div");return a.className="list-item",a.innerHTML=`<div class="list-icon"><img src="${t}" style="width:40px; height:40px; border-radius:50%; object-fit: cover;"></div><div class="list-text">${e}</div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`,a},UI.createGridItem=function(e,t,a){const i=document.createElement("div");if(i.className="grid-item",i.dataset.action=t,"playSong"===t)i.dataset.id=e.id,i.innerHTML=`<img src="${e.artwork}" alt="${e.album}"><div class="grid-item-title">${e.title}</div><div class="grid-item-subtitle">${e.artist}</div>`;else if("playAlbum"===t){i.dataset.album=a,i.innerHTML=`<img src="${e.artwork}" alt="${a}"><div class="grid-item-title">${a}</div><div class="grid-item-subtitle">${e.artist}</div>`}return i},UI.createSongListItem=function(e){const t=document.createElement("div");return t.className="song-list-item",t.dataset.action="playSong",t.dataset.id=e.id,t.innerHTML=`<img class="song-list-artwork" src="${e.artwork}"><div class="song-list-info-container"><div class="song-list-info"><span class="song-list-title">${e.title}<span class="explicit-tag">E</span></span><span class="song-list-artist">${e.artist}</span></div><i class="fas fa-ellipsis-h song-menu-btn"></i></div>`,t},UI.handleSearch=function(e){const t=e.target.value.toLowerCase(),a=document.getElementById("search-results-container"),i=document.getElementById("search-categories");if(a.classList.toggle("hidden",t.length<2),i.classList.toggle("hidden",t.length>=2),t.length<2)return;a.innerHTML="";const l=app.library.songs.filter(e=>e.title.toLowerCase().includes(t)||e.artist.toLowerCase().includes(t)||e.album.toLowerCase().includes(t));if(0===l.length)return void(a.innerHTML='<p class="empty-state">No Results</p>');l.forEach(e=>a.appendChild(this.createSongListItem(e)))};
+    UI.updatePlayerUI=function(){const e=document.getElementById("now-playing-bar");if(!app.nowPlaying.id)return void e.classList.remove("active");e.classList.add("active"),this.updatePlayIcons();const t=app.library.songs.find(e=>e.id===app.nowPlaying.id);t&&(["np-artwork","player-artwork"].forEach(e=>document.getElementById(e).src=t.artwork),["np-title","player-title"].forEach(e=>document.getElementById(e).textContent=t.title),document.getElementById("player-artist").textContent=t.artist,this.updatePlayerBackground(t.artwork))},UI.updatePlayIcons=function(){const e=app.nowPlaying.isPlaying;document.getElementById("np-play-icon").className=`fas ${e?"fa-pause":"fa-play"}`,document.getElementById("main-play-icon").className=`fas ${e?"fa-pause-circle":"fa-play-circle"}`},UI.updatePlayerBackground=function(e){const t=new Image;t.crossOrigin="Anonymous",t.src=e,t.onload=()=>{const e=document.createElement("canvas"),a=e.getContext("2d");a.drawImage(t,0,0,1,1);const[i,l,s]=a.getImageData(0,0,1,1).data;DOM.fullPlayer.style.backgroundImage=`linear-gradient(to bottom, rgb(${i},${l},${s}) 0%, #000 70%)`},t.onerror=()=>{DOM.fullPlayer.style.backgroundImage="linear-gradient(to bottom, #222 0%, #000 70%)"}},UI.renderLibraryView=function(){const e=document.getElementById("library-content");e.innerHTML='<div id="library-nav-list"></div><div class="section-header"><h2>Recently Added</h2></div><div class="grid" id="library-recent-grid"></div>';const t=e.querySelector("#library-nav-list");[{type:"playlists",icon:"fa-list-music",text:"Playlists"},{type:"artists",icon:"fa-microphone-alt",text:"Artists"},{type:"albums",icon:"fa-compact-disc",text:"Albums"},{type:"songs",icon:"fa-music",text:"Songs"}].forEach(e=>t.appendChild(this.createListItem(e)));const a=e.querySelector("#library-recent-grid"),i=[...app.library.songs].sort((e,t)=>t.addedAt-e.addedAt).slice(0,4),l=e.querySelector(".section-header");i.length>0?(l.classList.remove("hidden"),a.innerHTML="",i.forEach(e=>a.appendChild(this.createGridItem(e,"playSong")))):l.classList.add("hidden")},UI.renderPlaylistsView=function(e){const t=document.createDocumentFragment(),a=document.createElement("div");a.className="swipeable-list-item",a.innerHTML='<div class="swipe-content" data-action="viewPlaylist"><img class="song-list-artwork" id="favorite-playlist-artwork" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"><div class="song-list-info-container"><div class="song-list-info"><div class="playlist-title">Favorite Songs</div></div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div></div></div>',t.appendChild(a),app.library.playlists.forEach(e=>t.appendChild(this.createPlaylistItem(e))),0===app.library.playlists.length&&e.innerHTML+='<p class="empty-state">No playlists. Create one with the + button.</p>',e.appendChild(t)},UI.renderArtistsView=function(e){const t=Object.keys(app.library.artists).sort();if(0===t.length)return void(e.innerHTML+='<p class="empty-state">No artists found.</p>');t.forEach(t=>e.appendChild(this.createArtistListItem(t,app.library.artists[t][0].artwork)))},UI.renderAlbumsView=function(e){const t=Object.keys(app.library.albums).sort();if(0===t.length)return void(e.innerHTML+='<p class="empty-state">No albums found.</p>');e.innerHTML+='<div class="action-buttons"><button class="action-btn">Play</button><button class="action-btn">Shuffle</button></div>';const a=document.createElement("div");a.className="grid",t.forEach(t=>a.appendChild(this.createGridItem(app.library.albums[t],"playAlbum",t))),e.appendChild(a)},UI.renderSongsView=function(e){const t=app.library.songs;if(0===t.length)return void(e.innerHTML+='<p class="empty-state">No songs found.</p>');e.innerHTML+='<div class="action-buttons"><button class="action-btn">Play</button><button class="action-btn">Shuffle</button></div>',t.forEach(t=>e.appendChild(this.createSongListItem(t)))},UI.createListItem=function(e){const t=document.createElement("div");return t.className="list-item-wrapper",t.innerHTML=`<div class="list-item-content" data-action="showSubView" data-type="${e.type}"><div class="list-icon"><i class="fas ${e.icon}"></i></div><div class="list-text">${e.text}</div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div></div>`,t},UI.createPlaylistItem=function(e){const t=document.createElement("div");return t.className="swipeable-list-item",t.innerHTML=`<div class="swipe-actions"><button class="swipe-action-btn" data-action="renamePlaylist" data-id="${e.id}">Rename</button><button class="swipe-action-btn delete" data-action="deletePlaylist" data-id="${e.id}">Delete</button></div><div class="swipe-content" data-action="viewPlaylist" data-id="${e.id}"><img class="song-list-artwork" src="${e.artwork||"https://via.placeholder.com/54"}" /><div class="song-list-info-container"><div class="song-list-info"><div class="playlist-title">${e.name}</div><div class="playlist-subtitle">${e.songs.length} songs</div></div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div></div></div>`,t},UI.createArtistListItem=function(e,t){const a=document.createElement("div");return a.className="list-item-wrapper",a.innerHTML=`<div class="list-item-content"><div class="list-icon"><img src="${t}" style="width:40px; height:40px; border-radius:50%; object-fit: cover;"></div><div class="list-text">${e}</div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div></div>`,a},UI.createGridItem=function(e,t,a){const i=document.createElement("div");if(i.className="grid-item",i.dataset.action=t,"playSong"===t)i.dataset.id=e.id,i.innerHTML=`<img src="${e.artwork}" alt="${e.album}"><div class="grid-item-title">${e.title}</div><div class="grid-item-subtitle">${e.artist}</div>`;else if("playAlbum"===t){i.dataset.album=a,i.innerHTML=`<img src="${e.artwork}" alt="${a}"><div class="grid-item-title">${a}</div><div class="grid-item-subtitle">${e.artist}</div>`}return i},UI.createSongListItem=function(e){const t=document.createElement("div");return t.className="swipeable-list-item",t.innerHTML=`<div class="swipe-actions"><button class="swipe-action-btn delete" data-action="deleteSong" data-id="${e.id}">Delete</button></div><div class="swipe-content" data-action="playSong" data-id="${e.id}"><img class="song-list-artwork" src="${e.artwork}"><div class="song-list-info-container"><div class="song-list-info"><span class="song-list-title">${e.title}<span class="explicit-tag">E</span></span><span class="song-list-artist">${e.artist}</span></div><i class="fas fa-ellipsis-h song-menu-btn"></i></div></div>`,t},UI.handleSearch=function(e){const t=e.target.value.toLowerCase(),a=document.getElementById("search-results-container"),i=document.getElementById("search-categories");if(a.classList.toggle("hidden",t.length<2),i.classList.toggle("hidden",t.length>=2),t.length<2)return;a.innerHTML="";const l=app.library.songs.filter(e=>e.title.toLowerCase().includes(t)||e.artist.toLowerCase().includes(t)||e.album.toLowerCase().includes(t));if(0===l.length)return void(a.innerHTML='<p class="empty-state">No Results</p>');l.forEach(e=>a.appendChild(this.createSongListItem(e)))};
 
     init();
 });
