@@ -52,10 +52,10 @@
     }
     .header-with-back h1 { font-size: 17px; font-weight: 600; flex: 1; text-align: center; margin: 0 10px; }
     .header-actions { display: flex; gap: 15px; min-width: 40px; justify-content: flex-end; align-items: center; }
-    .header-actions .icon-btn { background: none; border: none; color: var(--system-pink); font-size: 22px; cursor: pointer; }
+    .header-actions .icon-btn, .round-btn { background: none; border: none; color: var(--system-pink); font-size: 22px; cursor: pointer; }
     .round-btn {
         background: var(--fill-tertiary); width: 32px; height: 32px; border-radius: 50%;
-        color: var(--system-pink); border: none; font-size: 14px; display: flex; align-items: center; justify-content: center;
+        font-size: 14px; display: flex; align-items: center; justify-content: center;
     }
 
     /* Main Content & Common Elements */
@@ -83,7 +83,7 @@
     .list-text { flex: 1; font-size: 17px; }
     .list-arrow { color: var(--system-gray); font-size: 14px; }
     .song-list-item { display: flex; align-items: center; padding: 0 20px; cursor: pointer; }
-    .song-list-artwork { width: 44px; height: 44px; border-radius: 4px; object-fit: cover; margin-right: 12px; }
+    .song-list-artwork { width: 44px; height: 44px; border-radius: 4px; object-fit: cover; margin-right: 12px; background: var(--system-gray-6);}
     .song-list-info { flex: 1; display: flex; flex-direction: column; }
     .song-list-info-container { flex: 1; display: flex; align-items: center; border-bottom: 1px solid var(--border-color); padding: 8px 0; }
     .song-list-item:last-child .song-list-info-container { border-bottom: none; }
@@ -134,13 +134,14 @@
 
     /* Full Player */
     .full-player {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000; display: flex;
-      flex-direction: column; padding: var(--safe-area-top) 25px var(--safe-area-bottom);
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000;
+      display: flex; flex-direction: column; padding: var(--safe-area-top) 25px var(--safe-area-bottom);
       background-image: linear-gradient(to bottom, #222 0%, #000 70%);
       transform: translateY(100%);
       transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+      visibility: hidden;
     }
-    .full-player.active { transform: translateY(0); }
+    .full-player.active { transform: translateY(0); visibility: visible; }
     .full-player.no-transition { transition: none; }
     .player-header { display: flex; justify-content: center; position: relative; padding: 15px 0; touch-action: none; }
     .player-minimize-handle { width: 36px; height: 5px; background: rgba(255,255,255,0.4); border-radius: 2.5px; }
@@ -186,6 +187,13 @@
 
     /* Utility */
     .hidden { display: none; }
+    .loading-overlay {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999;
+        display: none; align-items: center; justify-content: center;
+    }
+    .loading-overlay.active { display: flex; }
+    .spinner { border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid #fff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     .empty-state { text-align: center; color: var(--system-gray); padding: 50px 20px; }
   </style>
 </head>
@@ -261,6 +269,7 @@
   </div>
   
   <audio id="audio" preload="metadata"></audio>
+  <div class="loading-overlay" id="loading-overlay"><div class="spinner"></div></div>
   
   <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -270,7 +279,6 @@
         navStack: [],
         nowPlaying: { id: null, queue: [], currentIndex: -1, isPlaying: false },
         library: { songs: [], playlists: [], artists: {}, albums: {} },
-        touch: { startY: 0, currentY: 0, isDragging: false, target: null },
         uploadData: { songFile: null, artworkFile: null, artworkBase64: null },
     };
 
@@ -281,6 +289,7 @@
         uploadSheet: document.getElementById('upload-sheet'),
         modalOverlay: document.getElementById('modal-overlay'),
         subView: document.getElementById('sub-view'),
+        loadingOverlay: document.getElementById('loading-overlay'),
     };
 
     function init() {
@@ -302,8 +311,8 @@
         const swipeHandler = new SwipeHandler();
         DOM.fullPlayer.addEventListener('touchstart', e => swipeHandler.handleTouchStart(e, DOM.fullPlayer, UI.hideFullPlayer), { passive: true });
         DOM.uploadSheet.addEventListener('touchstart', e => swipeHandler.handleTouchStart(e, DOM.uploadSheet, Upload.closeModal), { passive: true });
-        document.body.addEventListener('touchmove', swipeHandler.handleTouchMove, { passive: false });
-        document.body.addEventListener('touchend', swipeHandler.handleTouchEnd);
+        document.body.addEventListener('touchmove', e => swipeHandler.handleTouchMove(e), { passive: false });
+        document.body.addEventListener('touchend', e => swipeHandler.handleTouchEnd(e));
 
         document.getElementById('artwork-input').addEventListener('change', Upload.handleArtworkFileSelect);
         document.getElementById('music-file-input').addEventListener('change', Upload.handleSongFileSelect);
@@ -341,7 +350,7 @@
       
     const DB = {
         init: () => new Promise(resolve => {
-            const request = indexedDB.open("AppleMusicDB_v6", 1);
+            const request = indexedDB.open("AppleMusicDB_v7", 1);
             request.onupgradeneeded = e => {
                 const db = e.target.result;
                 if (!db.objectStoreNames.contains("songs")) db.createObjectStore("songs", { keyPath: "id", autoIncrement: true });
@@ -380,7 +389,7 @@
         closeModal: () => {
             DOM.uploadSheet.classList.remove('active');
             DOM.modalOverlay.classList.remove('active');
-            this.resetForm();
+            setTimeout(() => this.resetForm(), 400); // Reset form after transition
         },
         resetForm() {
             document.getElementById('upload-form').reset();
@@ -428,9 +437,11 @@
                 alert("Please fill all fields and select a song file.");
                 return;
             }
+            UI.showLoading(true);
             await DB.add('songs', song);
             await Library.loadAllData();
             UI.renderAll();
+            UI.showLoading(false);
             this.closeModal();
         }
     };
@@ -445,10 +456,13 @@
 
         handleTouchStart(e, targetElement, onDismissCallback) {
             if (e.target.closest('.progress-container, .volume-container, .player-controls, .form-group')) return;
-            this.touch.isDragging = true;
-            this.touch.target = targetElement;
-            this.touch.onDismiss = onDismissCallback;
-            this.touch.startY = e.touches[0].clientY;
+            this.touch = {
+                isDragging: true,
+                target: targetElement,
+                onDismiss: onDismissCallback,
+                startY: e.touches[0].clientY,
+                currentY: e.touches[0].clientY,
+            };
             this.touch.target.classList.add('no-transition');
         }
 
@@ -468,13 +482,12 @@
             let deltaY = this.touch.currentY - this.touch.startY;
             this.touch.target.classList.remove('no-transition');
 
-            if (deltaY > 150) {
+            if (deltaY > 100) { // Dismiss threshold
                 this.touch.onDismiss();
             } else {
-                this.touch.target.style.transform = 'translateY(0)';
+                this.touch.target.style.transform = '';
             }
-            this.touch.target = null;
-            this.touch.onDismiss = null;
+            this.touch = { startY: 0, currentY: 0, isDragging: false, target: null, onDismiss: null };
         }
     }
 
@@ -547,6 +560,7 @@
     };
 
     const UI = {
+        showLoading: (show) => DOM.loadingOverlay.classList.toggle('active', show),
         showView(viewId) {
             DOM.views.forEach(v => v.classList.toggle('active', v.id === `${viewId}-view`));
             document.querySelectorAll('.tab-item').forEach(t => t.classList.toggle('active', t.dataset.view === viewId));
@@ -617,6 +631,7 @@
             const recentSongs = [...app.library.songs].sort((a,b)=>b.addedAt-a.addedAt).slice(0,4);
             recentGrid.innerHTML = '';
             if (recentSongs.length > 0) {
+                container.querySelector('.section-header').classList.remove('hidden');
                 recentSongs.forEach(song => recentGrid.appendChild(this.createGridItem(song, 'playSong')));
             } else {
                 container.querySelector('.section-header').classList.add('hidden');
@@ -628,12 +643,15 @@
             const contentContainer = document.getElementById('sub-view-content');
             contentContainer.innerHTML = `<div class="search-bar"><input type="text" class="search-input" placeholder="Search in ${titleMap[type]}"></div>`;
             const renderer = {
-                'playlists': () => contentContainer.innerHTML += '<p class="empty-state">Playlists will be available in a future update.</p>',
+                'playlists': this.renderPlaylistsView,
                 'artists': this.renderArtistsView,
                 'albums': this.renderAlbumsView,
                 'songs': this.renderSongsView,
             };
-            if(renderer[type]) renderer[type](contentContainer);
+            if(renderer[type]) renderer[type].call(this, contentContainer);
+        },
+        renderPlaylistsView(container) {
+             container.innerHTML += '<p class="empty-state">Playlists will be available in a future update.</p>';
         },
         renderArtistsView(container) {
             const artists = Object.keys(app.library.artists).sort();
