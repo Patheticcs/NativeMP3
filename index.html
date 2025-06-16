@@ -34,10 +34,15 @@
     /* View Management */
     .view {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column;
-      opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; background: #000; z-index: 10;
+      transform: translateX(100%);
+      transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      background: #000; z-index: 10;
     }
-    .view.active { opacity: 1; visibility: visible; z-index: 20; }
-
+    .view.active { transform: translateX(0); z-index: 20; }
+    .view.inactive-left { transform: translateX(-30%); transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+    .view.main-view { transition: opacity 0.2s; }
+    .view.main-view.inactive-left { transform: translateX(0); opacity: 0; }
+    
     /* Header Styles */
     .header { padding: var(--safe-area-top) 20px 10px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; }
     .header.large-title h1 { font-size: 34px; font-weight: 700; }
@@ -245,7 +250,7 @@
 <body>
 
   <div class="app-container">
-    <div id="library-view" class="view">
+    <div id="library-view" class="view main-view active">
         <div class="header large-title"><h1>Library</h1><div class="header-actions"><button class="round-btn" data-action="openUploadModal"><i class="fas fa-plus"></i></button><div class="header-profile-icon"><i class="fas fa-user"></i></div></div></div>
         <div class="main-content" id="library-content"></div>
     </div>
@@ -257,7 +262,7 @@
         </div>
         <div class="main-content" id="sub-view-content"></div>
     </div>
-    <div id="search-view" class="view">
+    <div id="search-view" class="view main-view">
       <div class="header large-title"><h1>Search</h1><div class="header-profile-icon"><i class="fas fa-user"></i></div></div>
       <div class="main-content">
         <div class="search-bar"><input type="text" class="search-input" id="search-input" placeholder="Artists, Songs, Lyrics, and More"><i class="fas fa-microphone search-input-mic"></i></div>
@@ -338,6 +343,7 @@
 
     const app = {
         db: null,
+        navStack: [],
         nowPlaying: { id: null, queue: [], currentIndex: -1, isPlaying: false },
         library: { songs: [], playlists: [], artists: {}, albums: {} },
         uploadData: { songFile: null, artworkBase64: null },
@@ -345,14 +351,14 @@
     };
 
     const DOM = {
-        views: document.querySelectorAll('.view'),
+        mainViews: document.querySelectorAll('.main-view'),
+        subView: document.getElementById('sub-view'),
         fullPlayer: document.getElementById('full-player'),
         audio: document.getElementById('audio'),
         uploadSheet: document.getElementById('upload-sheet'),
         uploadModalOverlay: document.getElementById('upload-modal-overlay'),
         playlistSheet: document.getElementById('create-playlist-sheet'),
         playlistModalOverlay: document.getElementById('playlist-modal-overlay'),
-        subView: document.getElementById('sub-view'),
         loadingOverlay: document.getElementById('loading-overlay'),
     };
 
@@ -412,21 +418,26 @@
         const actions = {
             'showView': () => UI.showView(target.dataset.view),
             'goBack': UI.goBack,
-            'openUploadModal': Upload.openModal, 'closeUploadModal': Upload.closeModal,
-            'openCreatePlaylistModal': Playlist.openModal, 'closeCreatePlaylistModal': Playlist.closeModal,
+            'openUploadModal': Upload.openModal,
+            'closeUploadModal': Upload.closeModal,
+            'openCreatePlaylistModal': Playlist.openModal,
+            'closeCreatePlaylistModal': Playlist.closeModal,
             'triggerArtworkUpload': () => document.getElementById('artwork-input').click(),
             'triggerSongUpload': () => document.getElementById('music-file-input').click(),
             'triggerPlaylistArtworkUpload': () => document.getElementById('playlist-artwork-input').click(),
             'submitUpload': Upload.submit,
             'submitCreatePlaylist': Playlist.submit,
-            'showSubView': () => UI.showSubView(target.dataset.type),
-            'viewPlaylist': () => UI.showSubView('playlistDetail', { playlistId: parseInt(target.dataset.id) }),
+            'showSubView': () => UI.showSubView(target.dataset.type, { prevViewId: app.navStack[app.navStack.length - 1].id }),
+            'viewPlaylist': () => UI.showSubView('playlistDetail', { playlistId: parseInt(target.dataset.id), prevViewId: 'playlists' }),
             'playSong': () => Player.playSong(parseInt(target.dataset.id), target.dataset.playlistId ? parseInt(target.dataset.playlistId) : null),
             'playAlbum': () => Player.playAlbum(target.dataset.album),
             'togglePlay': Player.togglePlay,
-            'nextSong': Player.nextSong, 'prevSong': Player.prevSong,
-            'showFullPlayer': UI.showFullPlayer, 'hideFullPlayer': UI.hideFullPlayer,
-            'seek': Player.seek, 'setVolume': Player.setVolume,
+            'nextSong': Player.nextSong,
+            'prevSong': Player.prevSong,
+            'showFullPlayer': UI.showFullPlayer,
+            'hideFullPlayer': UI.hideFullPlayer,
+            'seek': Player.seek,
+            'setVolume': Player.setVolume,
             'deleteSong': () => Library.deleteSong(parseInt(target.dataset.id)),
             'renamePlaylist': () => Library.renamePlaylist(parseInt(target.dataset.id)),
             'deletePlaylist': () => Library.deletePlaylist(parseInt(target.dataset.id)),
@@ -552,9 +563,9 @@
             if (!song.title || !song.artist || !song.album || !song.file) { alert("Please fill all fields and select a song file."); return; }
             UI.showLoading(true);
             
-            const songRequest = app.db.transaction('songs', 'readwrite').objectStore('songs').add(song);
+            const addReq = app.db.transaction('songs', 'readwrite').objectStore('songs').add(song);
             
-            songRequest.onsuccess = async (event) => {
+            addReq.onsuccess = async (event) => {
                 const songId = event.target.result;
                 const selectedPlaylistId = document.getElementById('add-to-playlist-select').value;
                 if (selectedPlaylistId) {
@@ -566,10 +577,7 @@
                 this.closeModal();
             };
 
-            songRequest.onerror = () => {
-                UI.showLoading(false);
-                alert("Failed to add song.");
-            };
+            addReq.onerror = () => { UI.showLoading(false); alert("Failed to add song."); };
         }
     };
     
@@ -805,25 +813,50 @@
     const UI = {
         showLoading: (show) => DOM.loadingOverlay.classList.toggle('active', show),
         showView(viewId) {
-            DOM.views.forEach(v => v.classList.toggle('active', v.id === `${viewId}-view`));
+            const currentActive = document.querySelector('.view.active');
+            const newActive = document.getElementById(`${viewId}-view`);
+            
+            if (currentActive) {
+                currentActive.classList.remove('active');
+                if (currentActive.classList.contains('main-view')) {
+                     currentActive.classList.add('inactive-left');
+                }
+            }
+
+            newActive.classList.remove('inactive-left');
+            newActive.classList.add('active');
+
             document.querySelectorAll('.tab-item').forEach(t => t.classList.toggle('active', t.dataset.view === viewId));
-            DOM.subView.classList.remove('active');
         },
         goBack() {
-            this.showView('library');
+            const currentActive = document.querySelector('.view.active');
+            const previousViewId = app.navStack.pop();
+            
+            if (currentActive) {
+                currentActive.classList.remove('active');
+            }
+            
+            const newActive = document.getElementById(`${previousViewId}-view`);
+            if (newActive) {
+                newActive.classList.remove('inactive-left');
+                newActive.classList.add('active');
+            } else {
+                 this.showView('library');
+            }
         },
         showSubView(type, data = {}) {
+            const currentActive = document.querySelector('.view.active');
+            if (currentActive) {
+                app.navStack.push(currentActive.id.replace('-view', ''));
+                currentActive.classList.add('inactive-left');
+            }
+
             this.renderSubView(type, data);
-            DOM.views.forEach(v => v.classList.remove('active'));
+            DOM.subView.classList.remove('inactive-left');
             DOM.subView.classList.add('active');
         },
-        showFullPlayer() {
-            if (!app.nowPlaying.id) return;
-            DOM.fullPlayer.classList.add('active');
-        },
-        hideFullPlayer() {
-            DOM.fullPlayer.classList.remove('active');
-        },
+        showFullPlayer() { if (app.nowPlaying.id) DOM.fullPlayer.classList.add('active'); },
+        hideFullPlayer() { DOM.fullPlayer.classList.remove('active'); },
         updatePlayerUI() {
             const bar = document.getElementById('now-playing-bar');
             if (!app.nowPlaying.id) { bar.classList.remove('active'); return; }
@@ -877,6 +910,11 @@
         renderSubView(type, data) {
             const titleMap = { playlists: 'Playlists', artists: 'Artists', albums: 'Albums', songs: 'Songs', playlistDetail: 'Playlist' };
             document.getElementById('sub-view-title').textContent = titleMap[type] || 'Library';
+            
+            const backBtnText = document.querySelector('#back-btn-text');
+            const prevViewTitle = titleMap[data.prevViewId] || 'Library';
+            backBtnText.textContent = prevViewTitle;
+
             const actionsContainer = document.getElementById('sub-view-actions');
             actionsContainer.innerHTML = (type === 'playlists') ? '<button class="icon-btn" data-action="openCreatePlaylistModal"><i class="fas fa-plus"></i></button>' : '';
             
@@ -897,6 +935,7 @@
             if (!playlist) { container.innerHTML = '<p class="empty-state">Playlist not found.</p>'; return; }
             
             document.getElementById('sub-view-title').textContent = playlist.name;
+            document.querySelector('#back-btn-text').textContent = 'Playlists';
 
             const hero = document.createElement('div');
             hero.className = 'playlist-detail-hero';
