@@ -205,12 +205,16 @@
     .sheet-header { text-align: center; margin-bottom: 20px; }
     .sheet-handle { width: 40px; height: 5px; background: var(--system-gray); border-radius: 2.5px; margin: 0 auto 15px; }
     .sheet-title { font-size: 18px; font-weight: 600; }
-    .sheet-form { display: flex; flex-direction: column; gap: 20px; }
+    .sheet-form { display: flex; flex-direction: column; gap: 16px; }
     .sheet-artwork-section { text-align: center; }
     .sheet-artwork-preview { width: 150px; height: 150px; background: #333; border-radius: 8px; margin: 0 auto 15px; object-fit: cover; cursor: pointer; }
     .form-group { display: flex; flex-direction: column; }
     .form-group label { color: var(--system-gray); font-size: 14px; margin-bottom: 8px; text-transform: uppercase; }
-    .form-group input, .form-group button { background: var(--fill-tertiary); border: none; border-radius: 8px; padding: 12px; font-size: 17px; color: #fff; }
+    .form-group input, .form-group button, .form-group select { 
+        background: var(--fill-tertiary); border: none; border-radius: 8px; padding: 12px; 
+        font-size: 17px; color: #fff; appearance: none; -webkit-appearance: none;
+    }
+    .form-group select { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%238e8e93' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 1rem center; background-size: 1em; }
     .form-group button { background: var(--system-pink); cursor: pointer; font-weight: 600; }
 
     /* Context Menu */
@@ -277,6 +281,12 @@
         <div class="form-group"><label for="song-title-input">TITLE</label><input type="text" id="song-title-input" required></div>
         <div class="form-group"><label for="song-artist-input">ARTIST</label><input type="text" id="song-artist-input" required></div>
         <div class="form-group"><label for="song-album-input">ALBUM</label><input type="text" id="song-album-input" required></div>
+        <div class="form-group">
+            <label for="add-to-playlist-select">ADD TO PLAYLIST (OPTIONAL)</label>
+            <select id="add-to-playlist-select">
+                <option value="">None</option>
+            </select>
+        </div>
         <div class="form-group"><button type="button" data-action="triggerSongUpload">Select Song File (.mp3)</button><span id="song-file-name" style="color: var(--system-gray); font-size: 14px; margin-top: 8px; text-align: center;">No file selected.</span><input type="file" id="music-file-input" class="hidden" accept=".mp3"></div>
         <div class="form-group"><button type="button" data-action="submitUpload">Add Song</button></div>
     </form>
@@ -402,10 +412,8 @@
         const actions = {
             'showView': () => UI.showView(target.dataset.view),
             'goBack': UI.goBack,
-            'openUploadModal': Upload.openModal,
-            'closeUploadModal': Upload.closeModal,
-            'openCreatePlaylistModal': Playlist.openModal,
-            'closeCreatePlaylistModal': Playlist.closeModal,
+            'openUploadModal': Upload.openModal, 'closeUploadModal': Upload.closeModal,
+            'openCreatePlaylistModal': Playlist.openModal, 'closeCreatePlaylistModal': Playlist.closeModal,
             'triggerArtworkUpload': () => document.getElementById('artwork-input').click(),
             'triggerSongUpload': () => document.getElementById('music-file-input').click(),
             'triggerPlaylistArtworkUpload': () => document.getElementById('playlist-artwork-input').click(),
@@ -416,12 +424,9 @@
             'playSong': () => Player.playSong(parseInt(target.dataset.id), target.dataset.playlistId ? parseInt(target.dataset.playlistId) : null),
             'playAlbum': () => Player.playAlbum(target.dataset.album),
             'togglePlay': Player.togglePlay,
-            'nextSong': Player.nextSong,
-            'prevSong': Player.prevSong,
-            'showFullPlayer': UI.showFullPlayer,
-            'hideFullPlayer': UI.hideFullPlayer,
-            'seek': Player.seek,
-            'setVolume': Player.setVolume,
+            'nextSong': Player.nextSong, 'prevSong': Player.prevSong,
+            'showFullPlayer': UI.showFullPlayer, 'hideFullPlayer': UI.hideFullPlayer,
+            'seek': Player.seek, 'setVolume': Player.setVolume,
             'deleteSong': () => Library.deleteSong(parseInt(target.dataset.id)),
             'renamePlaylist': () => Library.renamePlaylist(parseInt(target.dataset.id)),
             'deletePlaylist': () => Library.deletePlaylist(parseInt(target.dataset.id)),
@@ -436,7 +441,7 @@
       
     const DB = {
         init: () => new Promise(resolve => {
-            const request = indexedDB.open("AppleMusicDB_v12_Final", 1);
+            const request = indexedDB.open("AppleMusicDB_v13_Final", 1);
             request.onupgradeneeded = e => {
                 const db = e.target.result;
                 if (!db.objectStoreNames.contains("songs")) db.createObjectStore("songs", { keyPath: "id", autoIncrement: true });
@@ -494,6 +499,7 @@
     
     const Upload = {
         openModal: () => {
+            UI.renderUploadPlaylistOptions();
             DOM.uploadSheet.classList.add('active');
             DOM.uploadModalOverlay.classList.add('active');
         },
@@ -545,11 +551,25 @@
             };
             if (!song.title || !song.artist || !song.album || !song.file) { alert("Please fill all fields and select a song file."); return; }
             UI.showLoading(true);
-            await DB.add('songs', song);
-            await Library.loadAllData();
-            UI.renderAll();
-            UI.showLoading(false);
-            this.closeModal();
+            
+            const songRequest = app.db.transaction('songs', 'readwrite').objectStore('songs').add(song);
+            
+            songRequest.onsuccess = async (event) => {
+                const songId = event.target.result;
+                const selectedPlaylistId = document.getElementById('add-to-playlist-select').value;
+                if (selectedPlaylistId) {
+                    await Playlist.addSongToPlaylist(songId, parseInt(selectedPlaylistId));
+                }
+                await Library.loadAllData();
+                UI.renderAll();
+                UI.showLoading(false);
+                this.closeModal();
+            };
+
+            songRequest.onerror = () => {
+                UI.showLoading(false);
+                alert("Failed to add song.");
+            };
         }
     };
     
@@ -645,7 +665,7 @@
             if (!this.touch.isDragging) return;
             this.touch.currentX = e.touches[0].clientX;
             let deltaX = this.touch.currentX - this.touch.startX;
-            if (deltaX < 10) { // Only allow left swipe
+            if (deltaX < 10) { 
                 e.preventDefault();
                 const actionsWidth = this.touch.listItem.querySelector('.swipe-actions').offsetWidth;
                 const limitedX = Math.max(deltaX, -actionsWidth);
@@ -823,19 +843,14 @@
             document.getElementById('main-play-icon').className = `fas ${isPlaying ? 'fa-pause-circle' : 'fa-play-circle'}`;
         },
         updatePlayerBackground(imgSrc) {
-            const img = new Image;
-            img.crossOrigin = "Anonymous";
-            img.src = imgSrc;
+            const img = new Image; img.crossOrigin = "Anonymous"; img.src = imgSrc;
             img.onload = () => {
-                const c = document.createElement("canvas"), ctx = c.getContext("2d");
-                c.width = 1; c.height = 1;
+                const c=document.createElement("canvas"), ctx=c.getContext("2d"); c.width = 1; c.height = 1;
                 ctx.drawImage(img, 0, 0, 1, 1);
-                const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+                const [r,g,b] = ctx.getImageData(0,0,1,1).data;
                 DOM.fullPlayer.style.backgroundImage = `linear-gradient(to bottom, rgb(${r},${g},${b}) 0%, #000 70%)`;
             };
-            img.onerror = () => {
-                DOM.fullPlayer.style.backgroundImage = 'linear-gradient(to bottom, #222 0%, #000 70%)'
-            };
+            img.onerror = () => { DOM.fullPlayer.style.backgroundImage = 'linear-gradient(to bottom, #222 0%, #000 70%)'};
         },
         renderAll() { this.renderLibraryView(); },
         renderLibraryView() {
@@ -849,7 +864,7 @@
                 { type: 'songs', icon: 'fa-music', text: 'Songs' },
             ].forEach(item => navList.appendChild(this.createListItem(item)));
             const recentGrid = container.querySelector('#library-recent-grid');
-            const recentSongs = [...app.library.songs].sort((a, b) => b.addedAt - a.addedAt).slice(0, 4);
+            const recentSongs = [...app.library.songs].sort((a,b)=>b.addedAt-a.addedAt).slice(0,4);
             const sectionHeader = container.querySelector('.section-header');
             if (recentSongs.length > 0) {
                 sectionHeader.classList.remove('hidden');
@@ -868,10 +883,8 @@
             const contentContainer = document.getElementById('sub-view-content');
             
             const rendererMap = {
-                'playlists': this.renderPlaylistsView,
-                'artists': this.renderArtistsView,
-                'albums': this.renderAlbumsView,
-                'songs': this.renderSongsView,
+                'playlists': this.renderPlaylistsView, 'artists': this.renderArtistsView,
+                'albums': this.renderAlbumsView, 'songs': this.renderSongsView,
                 'playlistDetail': (container) => this.renderPlaylistDetailView(container, data.playlistId)
             };
             if(rendererMap[type]) {
@@ -927,6 +940,21 @@
             if (songs.length === 0) { container.innerHTML += '<p class="empty-state">No songs found.</p>'; return; }
             container.innerHTML += `<div class="action-buttons"><button class="action-btn" data-action="playAll" data-type="songs">Play</button><button class="action-btn" data-action="shuffleAll" data-type="songs">Shuffle</button></div>`;
             songs.forEach(song => container.appendChild(this.createSongListItem(song)));
+        },
+        renderUploadPlaylistOptions() {
+            const select = document.getElementById('add-to-playlist-select');
+            select.innerHTML = '<option value="">None</option>';
+            if(app.library.playlists.length > 0) {
+                app.library.playlists.forEach(p => {
+                    const option = document.createElement('option');
+                    option.value = p.id;
+                    option.textContent = p.name;
+                    select.appendChild(option);
+                });
+                select.disabled = false;
+            } else {
+                select.disabled = true;
+            }
         },
         createListItem(item) {
             const div = document.createElement("div");
@@ -1010,7 +1038,7 @@
             const menu = document.createElement('div');
             menu.className = 'context-menu';
             
-            let menuItems = '<div class="context-menu-item">Add to Playlist...</div>';
+            let menuItems = '<div class="context-menu-item" style="font-weight: 600;">Add to Playlist...</div>';
             app.library.playlists.forEach(p => {
                 menuItems += `<div class="context-menu-item" data-action="addSongToPlaylist" data-song-id="${songId}" data-playlist-id="${p.id}">${p.name}</div>`;
             });
@@ -1019,13 +1047,17 @@
             document.body.appendChild(menu);
 
             const { clientX, clientY } = e;
-            menu.style.top = `${clientY}px`;
-            menu.style.left = `${clientX}px`;
             
             const menuRect = menu.getBoundingClientRect();
-            if (menuRect.right > window.innerWidth - 10) menu.style.left = `${window.innerWidth - menuRect.width - 10}px`;
-            if (menuRect.bottom > window.innerHeight - 10) menu.style.top = `${window.innerHeight - menuRect.height - 10}px`;
+            let top = clientY;
+            let left = clientX;
+
+            if (left + menuRect.width > window.innerWidth - 10) left = window.innerWidth - menuRect.width - 10;
+            if (top + menuRect.height > window.innerHeight - 10) top = window.innerHeight - menuRect.height - 10;
             
+            menu.style.top = `${top}px`;
+            menu.style.left = `${left}px`;
+
             setTimeout(() => menu.classList.add('active'), 0);
             document.getElementById('context-menu-overlay').classList.add('active');
         },
