@@ -107,6 +107,12 @@
     .playlist-info { flex: 1; }
     .playlist-title { font-size: 17px; }
     .playlist-subtitle { font-size: 14px; color: var(--system-gray); }
+    
+    /* Playlist Detail View */
+    .playlist-detail-header { padding: 20px; text-align: center; }
+    .playlist-detail-artwork { width: 180px; height: 180px; border-radius: 8px; object-fit: cover; margin: 0 auto 15px; }
+    .playlist-detail-title { font-size: 24px; font-weight: 700; }
+    .playlist-detail-subtitle { font-size: 14px; color: var(--system-gray); }
 
     /* Search Page */
     .search-category-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 10px 20px; }
@@ -169,7 +175,7 @@
     .volume-container i { color: var(--system-gray); }
     .volume-slider { flex: 1; height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px; cursor: pointer; }
 
-    /* Upload Modal (Bottom Sheet) */
+    /* Bottom Sheet Modals */
     .modal-overlay {
         position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1100;
         opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s;
@@ -177,22 +183,29 @@
     .modal-overlay.active { opacity: 1; visibility: visible; }
     .bottom-sheet {
         position: fixed; bottom: 0; left: 0; right: 0; background: #1c1c1e; z-index: 1200;
-        border-radius: 20px 20px 0 0; padding: 15px 20px calc(20px + var(--safe-area-bottom));
+        border-radius: 20px 20px 0 0;
         transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
         touch-action: none;
+        max-height: 90vh; display: flex; flex-direction: column;
     }
     .bottom-sheet.active { transform: translateY(0); }
     .bottom-sheet.no-transition { transition: none; }
-    .sheet-header { text-align: center; margin-bottom: 20px; }
+    .sheet-header { padding: 15px 20px 0; text-align: center; flex-shrink: 0; }
     .sheet-handle { width: 40px; height: 5px; background: var(--system-gray); border-radius: 2.5px; margin: 0 auto 15px; }
     .sheet-title { font-size: 18px; font-weight: 600; }
-    .upload-form { display: flex; flex-direction: column; gap: 20px; }
-    .upload-artwork-section { text-align: center; }
-    .upload-artwork-preview { width: 150px; height: 150px; background: #333; border-radius: 8px; margin: 0 auto 15px; object-fit: cover; cursor: pointer; }
+    .sheet-content { padding: 0 20px 20px; overflow-y: auto; }
     .form-group { display: flex; flex-direction: column; }
     .form-group label { color: var(--system-gray); font-size: 14px; margin-bottom: 8px; text-transform: uppercase; }
     .form-group input, .form-group button { background: var(--fill-tertiary); border: none; border-radius: 8px; padding: 12px; font-size: 17px; color: #fff; }
-    #upload-file-button, #submit-upload-button { background: var(--system-pink); cursor: pointer; font-weight: 600; }
+    .form-group button { background: var(--system-pink); cursor: pointer; font-weight: 600; }
+    .upload-form { display: flex; flex-direction: column; gap: 20px; }
+    .upload-artwork-section { text-align: center; padding-top: 20px; }
+    .upload-artwork-preview { width: 150px; height: 150px; background: #333; border-radius: 8px; margin: 0 auto 15px; object-fit: cover; cursor: pointer; }
+    
+    /* Custom Playlist Modal */
+    .playlist-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .playlist-modal-btn { background: none; border: none; font-size: 17px; color: var(--system-pink); cursor: pointer; }
+    .playlist-modal-btn.disabled { color: var(--system-gray); }
 
     /* Utility */
     .hidden { display: none; }
@@ -237,17 +250,34 @@
     </div>
   </div>
 
-  <div class="modal-overlay" id="modal-overlay" data-action="closeUploadModal"></div>
+  <div class="modal-overlay" id="modal-overlay" data-action="closeAllModals"></div>
   <div class="bottom-sheet" id="upload-sheet">
     <div class="sheet-header"><div class="sheet-handle"></div><h2 class="sheet-title">Add to Library</h2></div>
-    <form class="upload-form" id="upload-form">
-        <div class="upload-artwork-section"><img id="upload-artwork-preview" class="upload-artwork-preview" src="https://via.placeholder.com/150?text=Artwork" data-action="triggerArtworkUpload" alt="Artwork Preview"><input type="file" id="artwork-input" class="hidden" accept="image/*"></div>
-        <div class="form-group"><label for="song-title-input">TITLE</label><input type="text" id="song-title-input" required></div>
-        <div class="form-group"><label for="song-artist-input">ARTIST</label><input type="text" id="song-artist-input" required></div>
-        <div class="form-group"><label for="song-album-input">ALBUM</label><input type="text" id="song-album-input" required></div>
-        <div class="form-group"><button type="button" id="upload-file-button" data-action="triggerSongUpload">Select Song File (.mp3)</button><span id="song-file-name" style="color: var(--system-gray); font-size: 14px; margin-top: 8px; text-align: center;">No file selected.</span><input type="file" id="music-file-input" class="hidden" accept=".mp3"></div>
-        <button type="button" id="submit-upload-button" data-action="submitUpload">Add Song</button>
-    </form>
+    <div class="sheet-content">
+        <form class="upload-form" id="upload-form">
+            <div class="upload-artwork-section"><img id="upload-artwork-preview" class="upload-artwork-preview" src="https://via.placeholder.com/150?text=Artwork" data-action="triggerArtworkUpload" alt="Artwork Preview"><input type="file" id="artwork-input" class="hidden" accept="image/*"></div>
+            <div class="form-group"><label for="song-title-input">TITLE</label><input type="text" id="song-title-input" required></div>
+            <div class="form-group"><label for="song-artist-input">ARTIST</label><input type="text" id="song-artist-input" required></div>
+            <div class="form-group"><label for="song-album-input">ALBUM</label><input type="text" id="song-album-input" required></div>
+            <div class="form-group"><button type="button" id="upload-file-button" data-action="triggerSongUpload">Select Song File (.mp3)</button><span id="song-file-name" style="color: var(--system-gray); font-size: 14px; margin-top: 8px; text-align: center;">No file selected.</span><input type="file" id="music-file-input" class="hidden" accept=".mp3"></div>
+            <div class="form-group"><button type="button" id="submit-upload-button" data-action="submitUpload">Add Song</button></div>
+        </form>
+    </div>
+  </div>
+  
+  <div class="bottom-sheet" id="playlist-sheet">
+    <div class="sheet-header">
+      <div class="playlist-modal-header">
+        <button class="playlist-modal-btn" data-action="closePlaylistModal">Cancel</button>
+        <h2 class="sheet-title">New Playlist</h2>
+        <button class="playlist-modal-btn disabled" id="playlist-done-btn" data-action="submitNewPlaylist">Done</button>
+      </div>
+    </div>
+    <div class="sheet-content">
+      <div class="form-group">
+        <input type="text" id="playlist-name-input" placeholder="Playlist Name">
+      </div>
+    </div>
   </div>
 
   <div class="now-playing-bar" id="now-playing-bar" data-action="showFullPlayer">
@@ -296,6 +326,7 @@
         fullPlayer: document.getElementById('full-player'),
         audio: document.getElementById('audio'),
         uploadSheet: document.getElementById('upload-sheet'),
+        playlistSheet: document.getElementById('playlist-sheet'),
         modalOverlay: document.getElementById('modal-overlay'),
         subView: document.getElementById('sub-view'),
         loadingOverlay: document.getElementById('loading-overlay'),
@@ -320,12 +351,14 @@
         const swipeHandler = new SwipeHandler();
         DOM.fullPlayer.addEventListener('touchstart', e => swipeHandler.handleTouchStart(e, DOM.fullPlayer, UI.hideFullPlayer), { passive: true });
         DOM.uploadSheet.addEventListener('touchstart', e => swipeHandler.handleTouchStart(e, DOM.uploadSheet, Upload.closeModal), { passive: true });
+        DOM.playlistSheet.addEventListener('touchstart', e => swipeHandler.handleTouchStart(e, DOM.playlistSheet, Library.closePlaylistModal), { passive: true });
         document.body.addEventListener('touchmove', e => swipeHandler.handleTouchMove(e), { passive: false });
         document.body.addEventListener('touchend', e => swipeHandler.handleTouchEnd(e));
 
         document.getElementById('artwork-input').addEventListener('change', Upload.handleArtworkFileSelect);
         document.getElementById('music-file-input').addEventListener('change', Upload.handleSongFileSelect);
         document.getElementById('search-input').addEventListener('input', UI.handleSearch);
+        document.getElementById('playlist-name-input').addEventListener('input', Library.handlePlaylistNameInput);
     }
     
     function handleAction(e) {
@@ -338,13 +371,14 @@
             'showView': () => UI.showView(target.dataset.view),
             'goBack': UI.goBack,
             'openUploadModal': Upload.openModal,
-            'closeUploadModal': Upload.closeModal,
+            'closeAllModals': () => { Upload.closeModal(); Library.closePlaylistModal(); },
             'triggerArtworkUpload': () => document.getElementById('artwork-input').click(),
             'triggerSongUpload': () => document.getElementById('music-file-input').click(),
             'submitUpload': Upload.submit,
-            'showSubView': () => UI.showSubView(target.dataset.type),
+            'showSubView': () => UI.showSubView(target.dataset.type, target.dataset.id),
             'playSong': () => Player.playSong(parseInt(target.dataset.id)),
             'playAlbum': () => Player.playAlbum(target.dataset.album),
+            'playPlaylist': () => Player.playPlaylist(parseInt(target.dataset.id)),
             'togglePlay': Player.togglePlay,
             'nextSong': Player.nextSong,
             'prevSong': Player.prevSong,
@@ -352,7 +386,9 @@
             'hideFullPlayer': UI.hideFullPlayer,
             'seek': Player.seek,
             'setVolume': Player.setVolume,
-            'createPlaylist': Library.createPlaylist,
+            'createPlaylist': Library.openPlaylistModal,
+            'closePlaylistModal': Library.closePlaylistModal,
+            'submitNewPlaylist': Library.submitNewPlaylist,
         };
         
         if (actions[action]) actions[action](e);
@@ -360,7 +396,7 @@
       
     const DB = {
         init: () => new Promise(resolve => {
-            const request = indexedDB.open("AppleMusicDB_v8_Final", 1);
+            const request = indexedDB.open("AppleMusicDB_v9_Final", 1);
             request.onupgradeneeded = e => {
                 const db = e.target.result;
                 if (!db.objectStoreNames.contains("songs")) db.createObjectStore("songs", { keyPath: "id", autoIncrement: true });
@@ -389,13 +425,28 @@
                 app.library.albums[album].songs.push(song);
             });
         },
-        async createPlaylist() {
-            const name = prompt("New Playlist Name:");
-            if(name?.trim()) {
-                await DB.add('playlists', { name, songs: [], createdAt: Date.now() });
-                await this.loadAllData();
-                UI.renderSubView('playlists');
-            }
+        openPlaylistModal: () => {
+            DOM.playlistSheet.classList.add('active');
+            DOM.modalOverlay.classList.add('active');
+        },
+        closePlaylistModal: () => {
+            DOM.playlistSheet.classList.remove('active');
+            DOM.modalOverlay.classList.remove('active');
+        },
+        handlePlaylistNameInput: e => {
+            const doneBtn = document.getElementById('playlist-done-btn');
+            doneBtn.classList.toggle('disabled', e.target.value.trim() === '');
+        },
+        async submitNewPlaylist() {
+            const nameInput = document.getElementById('playlist-name-input');
+            const name = nameInput.value.trim();
+            if(!name) return;
+
+            await DB.add('playlists', { name, songs: [], createdAt: Date.now() });
+            await this.loadAllData();
+            UI.renderSubView('playlists');
+            this.closePlaylistModal();
+            nameInput.value = '';
         },
     };
     
@@ -469,7 +520,7 @@
             this.touch = { startY: 0, currentY: 0, isDragging: false, target: null, onDismiss: null };
         }
         handleTouchStart(e, targetElement, onDismissCallback) {
-            if (e.target.closest('.progress-container, .volume-container, .player-controls, .form-group, button')) return;
+            if (e.target.closest('.progress-container, .volume-container, .player-controls, .form-group, button, .sheet-content')) return;
             this.touch = {
                 isDragging: true, target: targetElement, onDismiss: onDismissCallback,
                 startY: e.touches[0].clientY, currentY: e.touches[0].clientY,
@@ -508,6 +559,12 @@
             const album = app.library.albums[albumName];
             if (!album || album.songs.length === 0) return;
             app.nowPlaying.queue = album.songs.map(s => s.id);
+            this.playFromQueue(0);
+        },
+        playPlaylist(playlistId) {
+            const playlist = app.library.playlists.find(p => p.id === playlistId);
+            if (!playlist || playlist.songs.length === 0) return;
+            app.nowPlaying.queue = playlist.songs;
             this.playFromQueue(0);
         },
         loadSong(song) {
@@ -577,21 +634,20 @@
             if (app.navStack.length <= 1) return;
             app.navStack.pop();
             const lastView = app.navStack[app.navStack.length - 1];
-            this.showView(lastView.id);
+            if (lastView.type === 'main') this.showView(lastView.id);
+            else this.showSubView(lastView.id, lastView.dataId);
         },
-        showSubView(type) {
-            this.renderSubView(type);
-            app.navStack.push({ type: 'sub', id: type });
+        showSubView(type, dataId) {
+            this.renderSubView(type, dataId);
+            const currentView = app.navStack[app.navStack.length - 1];
+            if (currentView.type !== 'sub' || currentView.id !== type) {
+                 app.navStack.push({ type: 'sub', id: type, dataId: dataId });
+            }
             DOM.views.forEach(v => v.classList.remove('active'));
             DOM.subView.classList.add('active');
         },
-        showFullPlayer() {
-            if (!app.nowPlaying.id) return;
-            DOM.fullPlayer.classList.add('active');
-        },
-        hideFullPlayer() {
-            DOM.fullPlayer.classList.remove('active');
-        },
+        showFullPlayer() { if (app.nowPlaying.id) DOM.fullPlayer.classList.add('active'); },
+        hideFullPlayer() { DOM.fullPlayer.classList.remove('active'); },
         updatePlayerUI() {
             const bar = document.getElementById('now-playing-bar');
             if (!app.nowPlaying.id) { bar.classList.remove('active'); return; }
@@ -611,9 +667,7 @@
             document.getElementById('main-play-icon').className = `fas ${isPlaying ? 'fa-pause-circle' : 'fa-play-circle'}`;
         },
         updatePlayerBackground(imgSrc) {
-            const img = new Image;
-            img.crossOrigin = "Anonymous";
-            img.src = imgSrc;
+            const img = new Image; img.crossOrigin = "Anonymous"; img.src = imgSrc;
             img.onload = () => {
                 const canvas = document.createElement("canvas"), ctx = canvas.getContext("2d");
                 ctx.drawImage(img, 0, 0, 1, 1);
@@ -644,25 +698,27 @@
                 sectionHeader.classList.add('hidden');
             }
         },
-        renderSubView(type) {
-            const titleMap = { playlists: 'Playlists', artists: 'Artists', albums: 'Albums', songs: 'Songs' };
-            document.getElementById('sub-view-title').textContent = titleMap[type];
+        renderSubView(type, dataId) {
+            const titleMap = { playlists: 'Playlists', artists: 'Artists', albums: 'Albums', songs: 'Songs', playlistDetail: 'Playlist' };
+            document.getElementById('sub-view-title').textContent = titleMap[type] || 'Library';
             const actionsContainer = document.getElementById('sub-view-actions');
             actionsContainer.innerHTML = '';
             if (type === 'playlists') {
                 actionsContainer.innerHTML = '<button class="icon-btn" data-action="createPlaylist"><i class="fas fa-plus"></i></button>';
             }
             const contentContainer = document.getElementById('sub-view-content');
-            contentContainer.innerHTML = `<div class="search-bar"><input type="text" class="search-input" placeholder="Search in ${titleMap[type]}"></div>`;
+            
             const renderer = {
                 'playlists': this.renderPlaylistsView,
                 'artists': this.renderArtistsView,
                 'albums': this.renderAlbumsView,
                 'songs': this.renderSongsView,
+                'playlistDetail': this.renderPlaylistDetailView,
             };
-            if(renderer[type]) renderer[type].call(this, contentContainer);
+            if(renderer[type]) renderer[type].call(this, contentContainer, dataId);
         },
         renderPlaylistsView(container) {
+             container.innerHTML = `<div class="search-bar"><input type="text" class="search-input" placeholder="Search in Playlists"></div>`;
              const frag = document.createDocumentFragment();
              const fav = document.createElement('div');
              fav.className = 'playlist-item';
@@ -675,24 +731,48 @@
              }
              container.appendChild(frag);
         },
+        renderPlaylistDetailView(container, playlistId) {
+            const playlist = app.library.playlists.find(p => p.id === parseInt(playlistId));
+            if (!playlist) return;
+            document.getElementById('sub-view-title').textContent = playlist.name;
+            container.innerHTML = `
+                <div class="playlist-detail-header">
+                    <img class="playlist-detail-artwork" src="https://via.placeholder.com/180?text=${playlist.name.charAt(0)}">
+                    <h2 class="playlist-detail-title">${playlist.name}</h2>
+                    <p class="playlist-detail-subtitle">Playlist</p>
+                </div>
+                <div class="action-buttons">
+                    <button class="action-btn" data-action="playPlaylist" data-id="${playlist.id}">Play</button>
+                    <button class="action-btn">Shuffle</button>
+                </div>
+            `;
+            if (playlist.songs.length === 0) {
+                container.innerHTML += '<p class="empty-state">No songs in this playlist.</p>';
+            } else {
+                playlist.songs.forEach(songId => {
+                    const song = app.library.songs.find(s => s.id === songId);
+                    if (song) container.appendChild(this.createSongListItem(song));
+                });
+            }
+        },
         renderArtistsView(container) {
+            container.innerHTML = `<div class="search-bar"><input type="text" class="search-input" placeholder="Search in Artists"></div>`;
             const artists = Object.keys(app.library.artists).sort();
             if (artists.length === 0) { container.innerHTML += '<p class="empty-state">No artists found.</p>'; return; }
             artists.forEach(name => container.appendChild(this.createArtistListItem(name, app.library.artists[name][0].artwork)));
         },
         renderAlbumsView(container) {
+            container.innerHTML = `<div class="search-bar"><input type="text" class="search-input" placeholder="Search in Albums"></div><div class="action-buttons"><button class="action-btn">Play</button><button class="action-btn">Shuffle</button></div>`;
             const albums = Object.keys(app.library.albums).sort();
             if (albums.length === 0) { container.innerHTML += '<p class="empty-state">No albums found.</p>'; return; }
-            container.innerHTML += `<div class="action-buttons"><button class="action-btn">Play</button><button class="action-btn">Shuffle</button></div>`;
-            const grid = document.createElement('div');
-            grid.className = 'grid';
+            const grid = document.createElement('div'); grid.className = 'grid';
             albums.forEach(name => grid.appendChild(this.createGridItem(app.library.albums[name], 'playAlbum', name)));
             container.appendChild(grid);
         },
         renderSongsView(container) {
+            container.innerHTML = `<div class="search-bar"><input type="text" class="search-input" placeholder="Search in Songs"></div><div class="action-buttons"><button class="action-btn">Play</button><button class="action-btn">Shuffle</button></div>`;
             const songs = app.library.songs;
             if (songs.length === 0) { container.innerHTML += '<p class="empty-state">No songs found.</p>'; return; }
-            container.innerHTML += `<div class="action-buttons"><button class="action-btn">Play</button><button class="action-btn">Shuffle</button></div>`;
             songs.forEach(song => container.appendChild(this.createSongListItem(song)));
         },
         createListItem(item) {
@@ -706,6 +786,9 @@
         createPlaylistItem(playlist) {
             const div = document.createElement('div');
             div.className = 'playlist-item';
+            div.dataset.action = 'showSubView';
+            div.dataset.type = 'playlistDetail';
+            div.dataset.id = playlist.id;
             div.innerHTML = `<div class="playlist-item-artwork"><img src="https://via.placeholder.com/54?text=${playlist.name.charAt(0)}" /></div><div class="playlist-info"><div class="playlist-title">${playlist.name}</div><div class="playlist-subtitle">${playlist.songs.length} songs</div></div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`;
             return div;
         },
