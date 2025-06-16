@@ -8,7 +8,6 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
-
   <style>
     :root {
       --system-red: #ff3b30;
@@ -77,22 +76,31 @@
     .list-text { flex: 1; font-size: 17px; }
     .list-arrow { color: var(--system-gray); font-size: 14px; }
     
-    .list-item-swipe-container { position: relative; overflow: hidden; padding: 0 20px; }
+    .list-item-swipe-container { position: relative; overflow: hidden; padding: 0; margin: 0 20px; }
     .list-item-swipe-content {
         display: flex; align-items: center; background: #000;
         transition: transform 0.3s ease; will-change: transform;
+        width: 100%; /* Default width */
+        padding: 8px 0; /* Match inner song-list-info-container padding */
+        border-bottom: 1px solid var(--border-color);
     }
-    .list-item-actions { position: absolute; top: 0; right: 0; height: 100%; display: flex; }
-    .list-action-btn { height: 100%; padding: 0 25px; color: #fff; border: none; display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer; }
+    .list-item-swipe-container:last-of-type .list-item-swipe-content { border-bottom: none; }
+
+    .list-item-actions { 
+        position: absolute; top: 0; right: 0; height: 100%; display: flex; 
+        width: auto; /* Allow content to define width */
+        white-space: nowrap; /* Prevent wrapping of buttons */
+    }
+    .list-action-btn { height: 100%; padding: 0 20px; color: #fff; border: none; display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer; }
     .action-delete { background: var(--system-red); }
     .action-edit { background: var(--system-gray-2); }
     .song-list-artwork { width: 44px; height: 44px; border-radius: 4px; object-fit: cover; margin-right: 12px; background: var(--system-gray-6);}
     .song-list-info { flex: 1; display: flex; flex-direction: column; }
     .song-list-info-container {
         flex: 1; display: flex; align-items: center;
-        border-bottom: 1px solid var(--border-color); padding: 8px 0;
+        /* The border-bottom is now on .list-item-swipe-content */
+        padding: 0; 
     }
-    .list-item-swipe-container:last-of-type .song-list-info-container { border-bottom: none; }
     .song-list-title { font-size: 17px; display: flex; align-items: center; }
     .song-list-artist { font-size: 14px; color: var(--system-gray); }
     .song-menu-btn { color: var(--system-gray); font-size: 16px; padding: 10px; }
@@ -101,8 +109,8 @@
     .grid-item { cursor: pointer; }
     .grid-item img {
         width: 100%;
-        display: block;
-        aspect-ratio: 1/1;
+        height: auto; 
+        aspect-ratio: 1/1; 
         border-radius: 6px;
         object-fit: cover;
         margin-bottom: 5px;
@@ -147,7 +155,7 @@
     }
     .now-playing-bar.active { display: flex; }
     .app-container.player-visible .now-playing-bar {
-        transform: translateY(200%);
+        display: none;
     }
     .now-playing-artwork { width: 44px; height: 44px; border-radius: 4px; object-fit: cover; margin-right: 12px; background: #1c1c1e; }
     .now-playing-info { flex: 1; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -215,10 +223,17 @@
     .spinner { border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid #fff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     .empty-state { text-align: center; color: var(--system-gray); padding: 50px 20px; }
+
+    /* Fix for Recently Added Grid Images */
+    #library-recent-grid .grid-item img {
+        width: 100%;
+        height: auto; 
+        aspect-ratio: 1/1; 
+        object-fit: cover; 
+    }
   </style>
 </head>
 <body>
-
   <div class="app-container">
     <!-- Main Views -->
     <div id="library-view" class="view">
@@ -247,96 +262,93 @@
         </div>
       </div>
     </div>
-    
-    <!-- Modal Views -->
-    <div id="upload-view" class="modal-view view">
-        <div class="header header-with-back">
-            <button class="back-btn" data-action="closeUploadModal">Cancel</button>
-            <h1 style="text-align: center;">Add Music</h1>
-            <div class="header-actions" style="min-width: 60px;"><button class="back-btn" data-action="submitUpload">Done</button></div>
-        </div>
-        <div class="main-content">
-            <form class="modal-form-container" id="upload-form">
-                <div class="modal-artwork-section"><img id="upload-artwork-preview" class="modal-artwork-preview" src="https://via.placeholder.com/150?text=Artwork" data-action="triggerArtworkUpload" alt="Artwork Preview"><input type="file" id="artwork-input" class="hidden" accept="image/*"></div>
-                <div class="form-group"><label for="song-title-input">TITLE</label><input type="text" id="song-title-input" required></div>
-                <div class="form-group"><label for="song-artist-input">ARTIST</label><input type="text" id="song-artist-input" required></div>
-                <div class="form-group"><label for="song-album-input">ALBUM</label><input type="text" id="song-album-input" required></div>
-                <div class="form-group"><button type="button" class="secondary-btn" data-action="triggerSongUpload">Select Song File</button><span id="song-file-name" style="color: var(--system-gray); font-size: 14px; margin-top: 8px; text-align: center;">No file selected.</span><input type="file" id="music-file-input" class="hidden" accept=".mp3"></div>
-                <div class="form-group"><button type="button" class="secondary-btn" data-action="openPlaylistSelector">Add to Playlist (Optional)</button><span id="selected-playlist-name" style="color: var(--system-gray); font-size: 14px; margin-top: 8px; text-align: center;">No playlist selected.</span></div>
-            </form>
-        </div>
+<!-- Modal Views -->
+<div id="upload-view" class="modal-view view">
+    <div class="header header-with-back">
+        <button class="back-btn" data-action="closeUploadModal">Cancel</button>
+        <h1 style="text-align: center;">Add Music</h1>
+        <div class="header-actions" style="min-width: 60px;"><button class="back-btn" data-action="submitUpload">Done</button></div>
     </div>
-    <div id="playlist-selector-view" class="modal-view view select-playlist-modal">
-        <div class="header header-with-back">
-            <button class="back-btn" data-action="closePlaylistSelector">Back</button>
-            <h1 style="text-align: center;">Select Playlist</h1>
-            <div class="header-actions" style="min-width: 60px;"></div>
-        </div>
-        <div class="main-content" id="playlist-selector-list"></div>
+    <div class="main-content">
+        <form class="modal-form-container" id="upload-form">
+            <div class="modal-artwork-section"><img id="upload-artwork-preview" class="modal-artwork-preview" src="https://via.placeholder.com/150?text=Artwork" data-action="triggerArtworkUpload" alt="Artwork Preview"><input type="file" id="artwork-input" class="hidden" accept="image/*"></div>
+            <div class="form-group"><label for="song-title-input">TITLE</label><input type="text" id="song-title-input" required></div>
+            <div class="form-group"><label for="song-artist-input">ARTIST</label><input type="text" id="song-artist-input" required></div>
+            <div class="form-group"><label for="song-album-input">ALBUM</label><input type="text" id="song-album-input" required></div>
+            <div class="form-group"><button type="button" class="secondary-btn" data-action="triggerSongUpload">Select Song File</button><span id="song-file-name" style="color: var(--system-gray); font-size: 14px; margin-top: 8px; text-align: center;">No file selected.</span><input type="file" id="music-file-input" class="hidden" accept=".mp3"></div>
+            <div class="form-group"><button type="button" class="secondary-btn" data-action="openPlaylistSelector">Add to Playlist (Optional)</button><span id="selected-playlist-name" style="color: var(--system-gray); font-size: 14px; margin-top: 8px; text-align: center;">No playlist selected.</span></div>
+        </form>
     </div>
-    <div id="create-playlist-view" class="modal-view view">
-        <div class="header header-with-back">
-            <button class="back-btn" data-action="closeCreatePlaylistModal">Cancel</button>
-            <h1 style="text-align: center;">New Playlist</h1>
-            <div class="header-actions" style="min-width: 60px;"><button class="back-btn" data-action="submitCreatePlaylist">Done</button></div>
-        </div>
-        <div class="main-content">
-            <form class="modal-form-container" id="create-playlist-form">
-                <div class="modal-artwork-section"><img id="playlist-artwork-preview" class="modal-artwork-preview" src="https://via.placeholder.com/150?text=Artwork" data-action="triggerPlaylistArtworkUpload" alt="Playlist Artwork Preview"><input type="file" id="playlist-artwork-input" class="hidden" accept="image/*"></div>
-                <div class="form-group"><label for="playlist-name-input">PLAYLIST NAME</label><input type="text" id="playlist-name-input" required></div>
-            </form>
-        </div>
+</div>
+<div id="playlist-selector-view" class="modal-view view select-playlist-modal">
+    <div class="header header-with-back">
+        <button class="back-btn" data-action="closePlaylistSelector">Back</button>
+        <h1 style="text-align: center;">Select Playlist</h1>
+        <div class="header-actions" style="min-width: 60px;"></div>
     </div>
-    
-    <!-- Player View (Redesigned) -->
-    <div id="player-view" class="view">
-        <div class="header header-with-back">
-            <button class="back-btn" data-action="hideFullPlayer"><i class="fas fa-chevron-down"></i></button>
-            <h1 class="player-header-title">Now Playing</h1>
-            <div style="width: 40px; height: 100%;"></div> <!-- Placeholder for balance -->
-        </div>
-        <div class="main-content">
-            <div class="player-artwork-container">
-                <img id="player-artwork" class="player-artwork" src="" alt="">
-            </div>
-            <div>
-                <div class="player-info-container">
-                    <div class="player-details"><div id="player-title" class="title">Not Playing</div><div id="player-artist" class="artist"></div></div>
-                    <button class="round-btn favorite-btn" data-action="toggleFavorite"><i class="far fa-star"></i></button>
-                </div>
-                <div class="progress-container" data-action="seek"><div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div><div class="progress-times"><span id="current-time">0:00</span><span id="total-time">0:00</span></div></div>
-                <div class="player-controls">
-                  <button class="control-btn" data-action="prevSong"><i class="fas fa-backward-step"></i></button>
-                  <button class="control-btn main" data-action="togglePlay"><i id="main-play-icon" class="fas fa-play-circle"></i></button>
-                  <button class="control-btn" data-action="nextSong"><i class="fas fa-forward-step"></i></button></div>
-                <div class="volume-container">
-                  <i class="fas fa-volume-down"></i><div class="volume-slider" data-action="setVolume"><div class="progress-fill" id="volume-fill" style="width: 50%;"></div></div><i class="fas fa-volume-up"></i></div>
-                <div class="player-extra-controls">
-                  <button class="control-btn"><i class="fas fa-comment-dots"></i></button>
-                  <button class="control-btn"><i class="fas fa-podcast"></i></button>
-                  <button class="control-btn"><i class="fas fa-list-ul"></i></button>
-                </div>
-            </div>
-        </div>
+    <div class="main-content" id="playlist-selector-list"></div>
+</div>
+<div id="create-playlist-view" class="modal-view view">
+    <div class="header header-with-back">
+        <button class="back-btn" data-action="closeCreatePlaylistModal">Cancel</button>
+        <h1 style="text-align: center;">New Playlist</h1>
+        <div class="header-actions" style="min-width: 60px;"><button class="back-btn" data-action="submitCreatePlaylist">Done</button></div>
     </div>
+    <div class="main-content">
+        <form class="modal-form-container" id="create-playlist-form">
+            <div class="modal-artwork-section"><img id="playlist-artwork-preview" class="modal-artwork-preview" src="https://via.placeholder.com/150?text=Artwork" data-action="triggerPlaylistArtworkUpload" alt="Playlist Artwork Preview"><input type="file" id="playlist-artwork-input" class="hidden" accept="image/*"></div>
+            <div class="form-group"><label for="playlist-name-input">PLAYLIST NAME</label><input type="text" id="playlist-name-input" required></div>
+        </form>
+    </div>
+</div>
 
-    <div class="now-playing-bar" id="now-playing-bar" data-action="showFullPlayer">
-      <img id="np-artwork" class="now-playing-artwork" src="" alt=""><div id="np-title" class="now-playing-info">Not Playing</div>
-      <div class="now-playing-controls">
-        <button class="now-playing-btn" data-action="togglePlay"><i id="np-play-icon" class="fas fa-play"></i></button>
-        <button class="now-playing-btn" data-action="nextSong"><i class="fas fa-forward-step"></i></button>
-      </div>
+<!-- Player View (Redesigned) -->
+<div id="player-view" class="view">
+    <div class="header header-with-back">
+        <button class="back-btn" data-action="hideFullPlayer"><i class="fas fa-chevron-down"></i></button>
+        <h1 class="player-header-title">Now Playing</h1>
+        <div style="width: 40px; height: 100%;"></div> <!-- Placeholder for balance -->
     </div>
+    <div class="main-content">
+        <div class="player-artwork-container">
+            <img id="player-artwork" class="player-artwork" src="" alt="">
+        </div>
+        <div>
+            <div class="player-info-container">
+                <div class="player-details"><div id="player-title" class="title">Not Playing</div><div id="player-artist" class="artist"></div></div>
+                <button class="round-btn favorite-btn" data-action="toggleFavorite"><i class="far fa-star"></i></button>
+            </div>
+            <div class="progress-container" data-action="seek"><div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div><div class="progress-times"><span id="current-time">0:00</span><span id="total-time">0:00</span></div></div>
+            <div class="player-controls">
+              <button class="control-btn" data-action="prevSong"><i class="fas fa-backward-step"></i></button>
+              <button class="control-btn main" data-action="togglePlay"><i id="main-play-icon" class="fas fa-play-circle"></i></button>
+              <button class="control-btn" data-action="nextSong"><i class="fas fa-forward-step"></i></button></div>
+            <div class="volume-container">
+              <i class="fas fa-volume-down"></i><div class="volume-slider" data-action="setVolume"><div class="progress-fill" id="volume-fill" style="width: 50%;"></div></div><i class="fas fa-volume-up"></i></div>
+            <div class="player-extra-controls">
+              <button class="control-btn"><i class="fas fa-comment-dots"></i></button>
+              <button class="control-btn"><i class="fas fa-podcast"></i></button>
+              <button class="control-btn"><i class="fas fa-list-ul"></i></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="now-playing-bar" id="now-playing-bar" data-action="showFullPlayer">
+  <img id="np-artwork" class="now-playing-artwork" src="" alt=""><div id="np-title" class="now-playing-info">Not Playing</div>
+  <div class="now-playing-controls">
+    <button class="now-playing-btn" data-action="togglePlay"><i id="np-play-icon" class="fas fa-play"></i></button>
+    <button class="now-playing-btn" data-action="nextSong"><i class="fas fa-forward-step"></i></button>
   </div>
-
+</div>
+  </div>
   <div class="tab-bar">
     <div class="tab-item active" data-action="showView" data-view="library"><i class="fas fa-rectangle-stack tab-icon"></i><span class="tab-label">Library</span></div>
     <div class="tab-item" data-action="showView" data-view="search"><i class="fas fa-magnifying-glass tab-icon"></i><span class="tab-label">Search</span></div>
   </div>
-  
-  <audio id="audio" preload="metadata"></audio>
+<audio id="audio" preload="metadata"></audio>
+
   <div class="loading-overlay" id="loading-overlay"><div class="spinner"></div></div>
-  
   <script>
     document.addEventListener('DOMContentLoaded', () => {
 
@@ -413,7 +425,12 @@
             'togglePlay': Player.togglePlay,
             'nextSong': Player.nextSong,
             'prevSong': Player.prevSong,
-            'showFullPlayer': UI.showFullPlayer,
+            'showFullPlayer': () => {
+                if (app.nowPlaying.id) {
+                    UI.showView('player-view');
+                    history.pushState({ viewId: 'player-view' }, '', '#playing'); 
+                }
+            },
             'hideFullPlayer': UI.hideFullPlayer,
             'seek': Player.seek,
             'setVolume': Player.setVolume,
@@ -443,7 +460,7 @@
             case 'albumDetail':
                 UI.showSubView(path, id, true);
                 break;
-            case 'player':
+            case 'playing':
                 if (app.nowPlaying.id) UI.showView('player-view', true);
                 else window.location.hash = 'library';
                 break;
@@ -585,22 +602,23 @@
             this.currentX = this.startX;
             this.isSwiping = true;
             this.target.style.transition = 'transform 0.1s ease-out';
+            container.querySelector('.list-item-actions').style.width = 'auto'; // Ensure actions expand to content
         },
         handleTouchMove(e) {
             if (!this.isSwiping || !this.target) return;
-            const actionsWidth = this.target.parentElement.querySelector('.list-item-actions').offsetWidth || 180;
+            const actionsWidth = this.target.parentElement.querySelector('.list-item-actions').offsetWidth;
             this.currentX = e.touches[0].clientX;
             let diff = this.currentX - this.startX;
-            if (diff > 5) diff = 5;
-            if (diff < -actionsWidth - 5) diff = -actionsWidth - 5;
+            if (diff > 0) diff = 0; // Prevent swiping right
+            if (diff < -actionsWidth) diff = -actionsWidth; // Limit swipe to action buttons width
             this.target.style.transform = `translateX(${diff}px)`;
         },
         handleTouchEnd() {
             if (!this.isSwiping || !this.target) return;
             let diff = this.currentX - this.startX;
-            const actionsWidth = this.target.parentElement.querySelector('.list-item-actions').offsetWidth || 180;
+            const actionsWidth = this.target.parentElement.querySelector('.list-item-actions').offsetWidth;
             this.target.style.transition = 'transform 0.3s ease';
-            if (diff < this.threshold) {
+            if (diff < -actionsWidth / 2) { // If swiped more than half way
                 this.target.style.transform = `translateX(-${actionsWidth}px)`;
             } else {
                 this.target.style.transform = 'translateX(0)';
@@ -639,7 +657,7 @@
         showView(viewId, fromPopState = false) {
             if (!fromPopState) {
                 let hash = viewId.replace('-view', '');
-                if (viewId === 'player-view') hash = 'player';
+                if (viewId === 'player-view') hash = 'playing'; 
                 if (window.location.hash !== '#' + hash) {
                     history.pushState({ viewId }, '', '#' + hash);
                 }
@@ -685,7 +703,7 @@
         createPlaylistItem(playlist){const songCount=playlist.id==="favorites"?app.library.songs.filter(s=>s.isFavorite).length:playlist.songs.length;const itemHTML=`<div class="playlist-item" data-action="showSubView" data-type="playlistDetail" data-id="${playlist.id}"><div class="playlist-item-artwork" ${playlist.artwork==="FAVORITE"?'id="favorite-playlist-artwork"':`style="background-image:url(${playlist.artwork||'https://via.placeholder.com/150?text=Art'})"`}>${playlist.artwork==="FAVORITE"?'<i class="fas fa-star"></i>':''}</div><div class="playlist-info"><div class="playlist-title">${playlist.name}</div><div class="playlist-subtitle">${songCount} song${songCount!==1?'s':''}</div></div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div></div>`;const wrapper=document.createElement("div");wrapper.className="list-item-swipe-container";if(playlist.id!=="favorites"){wrapper.innerHTML=`<div class="list-item-actions"><button class="list-action-btn action-edit" data-action="renamePlaylist" data-id="${playlist.id}">Rename</button><button class="list-action-btn action-delete" data-action="deletePlaylist" data-id="${playlist.id}">Delete</button></div>`}wrapper.innerHTML+=`<div class="list-item-swipe-content">${itemHTML}</div>`;return wrapper},
         createArtistListItem(name,artwork){const el=document.createElement("div");el.className="list-item",el.innerHTML=`<div class="list-icon"><img src="${artwork}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;"></div><div class="list-text">${name}</div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`;return el},
         createGridItem(item,action,id){const el=document.createElement("div");el.className="grid-item",el.dataset.action=action;if(action==="playSong"){el.dataset.id=item.id,el.innerHTML=`<img src="${item.artwork}" alt="${item.album}"><div class="grid-item-title">${item.title}</div><div class="grid-item-subtitle">${item.artist}</div>`}else if(action==="showSubView"){el.dataset.type="albumDetail",el.dataset.id=id;const songCount=item.songs.length;el.innerHTML=`<img src="${item.artwork}" alt="${id}"><div class="grid-item-title">${id}</div><div class="grid-item-subtitle">${item.artist} • ${songCount} song${songCount!==1?'s':''}</div>`}return el},
-        createSongListItem(song){const wrapper=document.createElement("div");wrapper.className="list-item-swipe-container";wrapper.innerHTML=`<div class="list-item-actions"><button class="list-action-btn action-edit" data-action="editSong" data-id="${song.id}">Rename</button><button class="list-action-btn action-delete" data-action="deleteSong" data-id="${song.id}">Delete</button></div><div class="list-item-swipe-content" data-action="playSong" data-id="${song.id}"><img class="song-list-artwork" src="${song.artwork}"><div class="song-list-info-container"><div class="song-list-info"><span class="song-list-title ${song.title.includes('[E]') ? 'explicit' : ''}">${song.title.replace(' [E]','')}</span><span class="song-list-artist">${song.artist}</span></div><i class="fas fa-ellipsis-h song-menu-btn"></i></div></div>`;return wrapper},
+        createSongListItem(song){const wrapper=document.createElement("div");wrapper.className="list-item-swipe-container";wrapper.innerHTML=`<div class="list-item-actions"><button class="list-action-btn action-edit" data-action="editSong" data-id="${song.id}">Rename</button><button class="list-action-btn action-delete" data-action="deleteSong" data-id="${song.id}">Delete</button></div><div class="list-item-swipe-content" data-action="playSong" data-id="${song.id}"><img class="song-list-artwork" src="${song.artwork}"><div class="song-list-info"><span class="song-list-title ${song.title.includes('[E]') ? 'explicit' : ''}">${song.title.replace(' [E]','')}</span><span class="song-list-artist">${song.artist}</span></div><i class="fas fa-ellipsis-h song-menu-btn"></i></div>`;return wrapper},
         handleSearch(e){const t=e.target.value.toLowerCase(),a=document.getElementById("search-results-container"),i=document.getElementById("search-categories");a.classList.toggle("hidden",t.length<2),i.classList.toggle("hidden",t.length>=2);if(t.length<2)return;a.innerHTML="";const l=app.library.songs.filter(e=>e.title.toLowerCase().includes(t)||e.artist.toLowerCase().includes(t)||e.album.toLowerCase().includes(t));if(0===l.length)return void(a.innerHTML='<p class="empty-state">No Results</p>');l.forEach(e=>a.appendChild(this.createSongListItem(e)))},
         handleSubViewSearch(e){const t=e.target.closest(".main-content"),a=t.querySelectorAll(".list-item, .list-item-swipe-container, .grid-item"),i=e.target.value.toLowerCase();a.forEach(e=>{const t=e.textContent.toLowerCase();e.style.display=t.includes(i)?"":"none"})},
     };
