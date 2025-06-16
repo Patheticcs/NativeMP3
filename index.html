@@ -35,7 +35,6 @@
       opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; background: #000; z-index: 10;
     }
     .view.active { opacity: 1; visibility: visible; z-index: 20; }
-    #player-view.active ~ .now-playing-bar { transform: translateY(200%); }
 
     .header { padding: var(--safe-area-top) 20px 10px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; }
     .header.large-title h1 { font-size: 34px; font-weight: 700; }
@@ -78,11 +77,10 @@
     .list-text { flex: 1; font-size: 17px; }
     .list-arrow { color: var(--system-gray); font-size: 14px; }
     
-    .list-item-swipe-container { position: relative; overflow: hidden; }
+    .list-item-swipe-container { position: relative; overflow: hidden; padding: 0 20px; }
     .list-item-swipe-content {
         display: flex; align-items: center; background: #000;
         transition: transform 0.3s ease; will-change: transform;
-        padding: 0 20px; /* Added padding for consistent spacing */
     }
     .list-item-actions { position: absolute; top: 0; right: 0; height: 100%; display: flex; }
     .list-action-btn { height: 100%; padding: 0 25px; color: #fff; border: none; display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer; }
@@ -103,7 +101,7 @@
     .grid-item { cursor: pointer; }
     .grid-item img {
         width: 100%;
-        display: block; /* Ensure correct layout */
+        display: block;
         aspect-ratio: 1/1;
         border-radius: 6px;
         object-fit: cover;
@@ -145,9 +143,12 @@
     .now-playing-bar {
       position: fixed; bottom: calc(50px + var(--safe-area-bottom)); left: 10px; right: 10px;
       background: #2c2c2e; padding: 8px; border-radius: 12px; display: none; align-items: center;
-      cursor: pointer; z-index: 600; transform: translateY(200%); transition: transform 0.4s ease-in-out;
+      cursor: pointer; z-index: 600; transform: translateY(0); transition: transform 0.4s ease-in-out;
     }
-    .now-playing-bar.active { display: flex; transform: translateY(0); }
+    .now-playing-bar.active { display: flex; }
+    .app-container.player-visible .now-playing-bar {
+        transform: translateY(200%);
+    }
     .now-playing-artwork { width: 44px; height: 44px; border-radius: 4px; object-fit: cover; margin-right: 12px; background: #1c1c1e; }
     .now-playing-info { flex: 1; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .now-playing-controls { display: flex; align-items: center; gap: 20px; margin-right: 5px; }
@@ -158,6 +159,8 @@
       display: flex; flex-direction: column; justify-content: space-between;
       padding: 0 30px; flex-grow: 1;
     }
+    #player-view .header-with-back { background: transparent; border: none; }
+    #player-view .player-header-title { font-size: 17px; font-weight: 600; opacity: 0.8; }
     .player-artwork-container {
       flex-grow: 1; display: flex; align-items: center; justify-content: center; padding: 10px 0;
     }
@@ -287,10 +290,10 @@
     
     <!-- Player View (Redesigned) -->
     <div id="player-view" class="view">
-        <div class="header header-with-back" style="background: transparent; border: none;">
+        <div class="header header-with-back">
             <button class="back-btn" data-action="hideFullPlayer"><i class="fas fa-chevron-down"></i></button>
-            <h1 class="player-header-title"></h1>
-            <button class="icon-btn" data-action="showMoreOptions"><i class="fas fa-ellipsis-h"></i></button>
+            <h1 class="player-header-title">Now Playing</h1>
+            <div style="width: 40px; height: 100%;"></div> <!-- Placeholder for balance -->
         </div>
         <div class="main-content">
             <div class="player-artwork-container">
@@ -316,13 +319,13 @@
             </div>
         </div>
     </div>
-  </div>
 
-  <div class="now-playing-bar" id="now-playing-bar" data-action="showFullPlayer">
-    <img id="np-artwork" class="now-playing-artwork" src="" alt=""><div id="np-title" class="now-playing-info">Not Playing</div>
-    <div class="now-playing-controls">
-      <button class="now-playing-btn" data-action="togglePlay"><i id="np-play-icon" class="fas fa-play"></i></button>
-      <button class="now-playing-btn" data-action="nextSong"><i class="fas fa-forward-step"></i></button>
+    <div class="now-playing-bar" id="now-playing-bar" data-action="showFullPlayer">
+      <img id="np-artwork" class="now-playing-artwork" src="" alt=""><div id="np-title" class="now-playing-info">Not Playing</div>
+      <div class="now-playing-controls">
+        <button class="now-playing-btn" data-action="togglePlay"><i id="np-play-icon" class="fas fa-play"></i></button>
+        <button class="now-playing-btn" data-action="nextSong"><i class="fas fa-forward-step"></i></button>
+      </div>
     </div>
   </div>
 
@@ -347,6 +350,7 @@
 
     const DOM = {
         views: document.querySelectorAll('.view'),
+        appContainer: document.querySelector('.app-container'),
         audio: document.getElementById('audio'),
         loadingOverlay: document.getElementById('loading-overlay'),
     };
@@ -642,6 +646,9 @@
             }
             DOM.views.forEach(v => v.classList.remove('active'));
             document.getElementById(viewId).classList.add('active');
+            
+            DOM.appContainer.classList.toggle('player-visible', viewId === 'player-view');
+
             const viewName = viewId.replace('-view', '');
             document.querySelectorAll('.tab-item').forEach(t => t.classList.toggle('active', t.dataset.view === viewName));
         },
@@ -656,13 +663,14 @@
             this.renderSubView(type, id);
             DOM.views.forEach(v => v.classList.remove('active'));
             document.getElementById('sub-view').classList.add('active');
+            DOM.appContainer.classList.remove('player-visible');
         },
         showModal: (viewId) => { document.getElementById(viewId).classList.add('active'); },
         hideModal: (viewId) => { document.getElementById(viewId).classList.remove('active'); },
         goBack: () => history.back(),
         showFullPlayer() { if (app.nowPlaying.id) this.showView('player-view'); },
         hideFullPlayer() { this.goBack(); },
-        updatePlayerUI(){const e=document.getElementById("now-playing-bar");if(!app.nowPlaying.id)return void e.classList.remove("active");e.classList.add("active"),this.updatePlayIcons();const t=app.library.songs.find(e=>e.id===app.nowPlaying.id);if(t){["np-artwork","player-artwork"].forEach(e=>document.getElementById(e).src=t.artwork);const a=document.getElementById("player-title"),i=document.getElementById("np-title");a.textContent=t.title.replace(" [E]",""),i.textContent=t.title.replace(" [E]",""),a.classList.toggle("explicit",t.title.includes("[E]")),i.classList.toggle("explicit",t.title.includes("[E]")),document.getElementById("player-artist").textContent=t.artist,this.updateFavoriteButton(t.isFavorite),this.updatePlayerBackground(t.artwork)}},updateFavoriteButton(isFavorite){const favBtn=document.querySelector(".favorite-btn i");if(favBtn){favBtn.className=isFavorite?"fas fa-star":"far fa-star";favBtn.parentElement.classList.toggle("favorited",isFavorite)}},updatePlayIcons(){const isPlaying=app.nowPlaying.isPlaying;document.getElementById("np-play-icon").className=`fas ${isPlaying?"fa-pause":"fa-play"}`,document.getElementById("main-play-icon").className=`fas ${isPlaying?"fa-pause-circle":"fa-play-circle"}`},updatePlayerBackground(src){const img=new Image;img.crossOrigin="Anonymous",img.src=src,img.onload=()=>{const canvas=document.createElement("canvas"),ctx=canvas.getContext("2d");ctx.drawImage(img,0,0,1,1);const[r,g,b]=ctx.getImageData(0,0,1,1).data;document.getElementById("player-view").style.backgroundImage=`linear-gradient(to bottom, rgb(${r},${g},${b}) 0%, #000 70%)`},img.onerror=()=>{document.getElementById("player-view").style.backgroundImage="linear-gradient(to bottom, #222 0%, #000 70%)"}},
+        updatePlayerUI(){const nowPlayingBar=document.getElementById("now-playing-bar");if(!app.nowPlaying.id)return void nowPlayingBar.classList.remove("active");nowPlayingBar.classList.add("active"),this.updatePlayIcons();const song=app.library.songs.find(e=>e.id===app.nowPlaying.id);if(song){["np-artwork","player-artwork"].forEach(e=>document.getElementById(e).src=song.artwork);const playerTitle=document.getElementById("player-title"),npTitle=document.getElementById("np-title");playerTitle.textContent=song.title.replace(" [E]",""),npTitle.textContent=song.title.replace(" [E]",""),playerTitle.classList.toggle("explicit",song.title.includes("[E]")),npTitle.classList.toggle("explicit",song.title.includes("[E]")),document.getElementById("player-artist").textContent=song.artist,this.updateFavoriteButton(song.isFavorite),this.updatePlayerBackground(song.artwork)}},updateFavoriteButton(isFavorite){const favBtn=document.querySelector(".favorite-btn i");if(favBtn){favBtn.className=isFavorite?"fas fa-star":"far fa-star";favBtn.parentElement.classList.toggle("favorited",isFavorite)}},updatePlayIcons(){const isPlaying=app.nowPlaying.isPlaying;document.getElementById("np-play-icon").className=`fas ${isPlaying?"fa-pause":"fa-play"}`,document.getElementById("main-play-icon").className=`fas ${isPlaying?"fa-pause-circle":"fa-play-circle"}`},updatePlayerBackground(src){const img=new Image;img.crossOrigin="Anonymous",img.src=src,img.onload=()=>{const canvas=document.createElement("canvas"),ctx=canvas.getContext("2d");ctx.drawImage(img,0,0,1,1);const[r,g,b]=ctx.getImageData(0,0,1,1).data;document.getElementById("player-view").style.backgroundImage=`linear-gradient(to bottom, rgb(${r},${g},${b}) 0%, #000 70%)`},img.onerror=()=>{document.getElementById("player-view").style.backgroundImage="linear-gradient(to bottom, #222 0%, #000 70%)"}},
         renderAll() { this.renderLibraryView(); },
         renderLibraryView(){const e=document.getElementById("library-content");e.innerHTML=`<div id="library-nav-list"></div><div class="section-header"><h2>Recently Added</h2></div><div class="grid" id="library-recent-grid"></div>`;const t=e.querySelector("#library-nav-list");[{type:"playlists",icon:"fa-list-music",text:"Playlists"},{type:"artists",icon:"fa-microphone-alt",text:"Artists"},{type:"albums",icon:"fa-compact-disc",text:"Albums"},{type:"songs",icon:"fa-music",text:"Songs"}].forEach(e=>t.appendChild(this.createListItem(e)));const a=e.querySelector("#library-recent-grid"),i=[...app.library.songs].sort((e,t)=>t.addedAt-e.addedAt).slice(0,4);a.innerHTML="";const l=e.querySelector(".section-header");i.length>0?(l.classList.remove("hidden"),i.forEach(e=>a.appendChild(this.createGridItem(e,"playSong")))):l.classList.add("hidden")},
         renderSubView(type,id){const titles={playlists:"Playlists",playlistDetail:"Playlist",artists:"Artists",albums:"Albums",albumDetail:"Album",songs:"Songs"},backText={playlistDetail:"Playlists",albumDetail:"Albums",default:"Library"};if(document.querySelector("#sub-view .back-btn span").textContent=backText[type]||backText.default,type==="playlistDetail"){const e=id==="favorites"?"Favorite Songs":app.library.playlists.find(e=>e.id===parseInt(id))?.name;titles.playlistDetail=e}else if(type==="albumDetail")titles.albumDetail=id;document.getElementById("sub-view-title").textContent=titles[type];const actionsContainer=document.getElementById("sub-view-actions");actionsContainer.innerHTML=type==="playlists"?'<button class="icon-btn" data-action="openCreatePlaylistModal"><i class="fas fa-plus"></i></button>':"";const contentContainer=document.getElementById("sub-view-content");contentContainer.dataset.type=type,contentContainer.innerHTML=`<div class="search-bar"><input type="text" class="search-input" data-type="${type}" data-id="${id}" placeholder="Search in ${titles[type]||''}"></div>`;const renderers={playlists:this.renderPlaylistsView,playlistDetail:this.renderPlaylistDetailView,artists:this.renderArtistsView,albums:this.renderAlbumsView,albumDetail:this.renderAlbumDetailView,songs:this.renderSongsView};renderers[type]&&renderers[type].call(this,contentContainer,id)},
@@ -674,7 +682,7 @@
         renderAlbumsView(container){const albums=Object.keys(app.library.albums).sort();if(albums.length===0)return container.innerHTML+='<p class="empty-state">No albums found.</p>';const grid=document.createElement("div");grid.className="grid";albums.forEach(albumName=>grid.appendChild(this.createGridItem(app.library.albums[albumName],"showSubView",albumName)));container.appendChild(grid)},
         renderSongsView(container){const songs=app.library.songs;if(songs.length===0)return container.innerHTML+='<p class="empty-state">No songs found.</p>';container.innerHTML+=`<div class="action-buttons"><button class="action-btn" data-action="playSong" data-id="${songs[0]?.id}"><i class="fas fa-play"></i>Play</button><button class="action-btn" data-action="shuffle" data-type="songs"><i class="fas fa-shuffle"></i>Shuffle</button></div>`;songs.forEach(song=>container.appendChild(this.createSongListItem(song)))},
         createListItem(item){const el=document.createElement("div");el.className="list-item",el.dataset.action="showSubView",el.dataset.type=item.type,el.innerHTML=`<div class="list-icon"><i class="fas ${item.icon}"></i></div><div class="list-text">${item.text}</div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`;return el},
-        createPlaylistItem(playlist){const songCount=playlist.id==="favorites"?app.library.songs.filter(s=>s.isFavorite).length:playlist.songs.length;const itemHTML=`<div class="playlist-item" data-action="showSubView" data-type="playlistDetail" data-id="${playlist.id}"><div class="playlist-item-artwork" ${playlist.artwork==="FAVORITE"?'id="favorite-playlist-artwork"':`style="background-image:url(${playlist.artwork||'https://via.placeholder.com/150?text=Art'})"`}>${playlist.artwork==="FAVORITE"?'<i class="fas fa-star"></i>':''}</div><div class="playlist-info"><div class="playlist-title">${playlist.name}</div><div class="playlist-subtitle">${songCount} song${songCount!==1?'s':''}</div></div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div></div>`;if(playlist.id==="favorites"){const e=document.createElement("div");e.className="list-item-swipe-container";e.innerHTML=`<div class="list-item-swipe-content">${itemHTML}</div>`;return e}const wrapper=document.createElement("div");wrapper.className="list-item-swipe-container";wrapper.innerHTML=`<div class="list-item-actions"><button class="list-action-btn action-edit" data-action="renamePlaylist" data-id="${playlist.id}">Rename</button><button class="list-action-btn action-delete" data-action="deletePlaylist" data-id="${playlist.id}">Delete</button></div><div class="list-item-swipe-content">${itemHTML}</div>`;return wrapper},
+        createPlaylistItem(playlist){const songCount=playlist.id==="favorites"?app.library.songs.filter(s=>s.isFavorite).length:playlist.songs.length;const itemHTML=`<div class="playlist-item" data-action="showSubView" data-type="playlistDetail" data-id="${playlist.id}"><div class="playlist-item-artwork" ${playlist.artwork==="FAVORITE"?'id="favorite-playlist-artwork"':`style="background-image:url(${playlist.artwork||'https://via.placeholder.com/150?text=Art'})"`}>${playlist.artwork==="FAVORITE"?'<i class="fas fa-star"></i>':''}</div><div class="playlist-info"><div class="playlist-title">${playlist.name}</div><div class="playlist-subtitle">${songCount} song${songCount!==1?'s':''}</div></div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div></div>`;const wrapper=document.createElement("div");wrapper.className="list-item-swipe-container";if(playlist.id!=="favorites"){wrapper.innerHTML=`<div class="list-item-actions"><button class="list-action-btn action-edit" data-action="renamePlaylist" data-id="${playlist.id}">Rename</button><button class="list-action-btn action-delete" data-action="deletePlaylist" data-id="${playlist.id}">Delete</button></div>`}wrapper.innerHTML+=`<div class="list-item-swipe-content">${itemHTML}</div>`;return wrapper},
         createArtistListItem(name,artwork){const el=document.createElement("div");el.className="list-item",el.innerHTML=`<div class="list-icon"><img src="${artwork}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;"></div><div class="list-text">${name}</div><div class="list-arrow"><i class="fas fa-chevron-right"></i></div>`;return el},
         createGridItem(item,action,id){const el=document.createElement("div");el.className="grid-item",el.dataset.action=action;if(action==="playSong"){el.dataset.id=item.id,el.innerHTML=`<img src="${item.artwork}" alt="${item.album}"><div class="grid-item-title">${item.title}</div><div class="grid-item-subtitle">${item.artist}</div>`}else if(action==="showSubView"){el.dataset.type="albumDetail",el.dataset.id=id;const songCount=item.songs.length;el.innerHTML=`<img src="${item.artwork}" alt="${id}"><div class="grid-item-title">${id}</div><div class="grid-item-subtitle">${item.artist} • ${songCount} song${songCount!==1?'s':''}</div>`}return el},
         createSongListItem(song){const wrapper=document.createElement("div");wrapper.className="list-item-swipe-container";wrapper.innerHTML=`<div class="list-item-actions"><button class="list-action-btn action-edit" data-action="editSong" data-id="${song.id}">Rename</button><button class="list-action-btn action-delete" data-action="deleteSong" data-id="${song.id}">Delete</button></div><div class="list-item-swipe-content" data-action="playSong" data-id="${song.id}"><img class="song-list-artwork" src="${song.artwork}"><div class="song-list-info-container"><div class="song-list-info"><span class="song-list-title ${song.title.includes('[E]') ? 'explicit' : ''}">${song.title.replace(' [E]','')}</span><span class="song-list-artist">${song.artist}</span></div><i class="fas fa-ellipsis-h song-menu-btn"></i></div></div>`;return wrapper},
