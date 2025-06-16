@@ -52,10 +52,10 @@
     }
     .header-with-back h1 { font-size: 17px; font-weight: 600; flex: 1; text-align: center; margin: 0 10px; }
     .header-actions { display: flex; gap: 15px; min-width: 40px; justify-content: flex-end; align-items: center; }
-    .header-actions .icon-btn, .round-btn { background: none; border: none; color: var(--system-pink); font-size: 22px; cursor: pointer; }
+    .header-actions .icon-btn { background: none; border: none; color: var(--system-pink); font-size: 22px; cursor: pointer; }
     .round-btn {
         background: var(--fill-tertiary); width: 32px; height: 32px; border-radius: 50%;
-        font-size: 14px; display: flex; align-items: center; justify-content: center;
+        color: var(--system-pink); border: none; font-size: 14px; display: flex; align-items: center; justify-content: center;
     }
 
     /* Main Content & Common Elements */
@@ -69,7 +69,6 @@
       background-repeat: no-repeat; background-position: 10px center;
     }
     .search-input-mic { position: absolute; right: 30px; top: 50%; transform: translateY(-50%); color: var(--system-gray); font-size: 16px; }
-    .search-input::placeholder { color: var(--system-gray); }
     .content-section { margin-bottom: 20px; }
     .section-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 20px 15px; }
     .section-header h2 { font-size: 22px; font-weight: 700; }
@@ -89,10 +88,9 @@
     .song-list-item:last-child .song-list-info-container { border-bottom: none; }
     .song-list-title { font-size: 17px; display: flex; align-items: center; }
     .song-list-artist { font-size: 14px; color: var(--system-gray); }
-    .explicit-tag { font-size: 9px; border: 1px solid var(--system-gray); color: var(--system-gray); border-radius: 2px; padding: 0 2px; margin-left: 6px; }
     .song-menu-btn { color: var(--system-gray); font-size: 16px; padding: 10px; }
 
-    /* Grid & Carousel */
+    /* Grid Layout */
     .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 0 20px; }
     .grid-item { cursor: pointer; }
     .grid-item img { width: 100%; aspect-ratio: 1/1; border-radius: 6px; object-fit: cover; margin-bottom: 5px; background: #1c1c1e; }
@@ -168,45 +166,21 @@
     .volume-slider { flex: 1; height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px; cursor: pointer; }
 
     /* Add Music View */
-    #add-view .main-content {
-        padding: 20px;
-        display: flex;
-        flex-direction: column;
-    }
-    .upload-form {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-        flex: 1;
-    }
-    .upload-form .form-content {
-        flex: 1;
-        overflow-y: auto;
-        padding-bottom: 20px;
-    }
+    #add-view .main-content { padding: 20px; display: flex; flex-direction: column; }
+    .upload-form { display: flex; flex-direction: column; gap: 15px; flex: 1; }
+    .upload-form .form-content { flex: 1; overflow-y: auto; padding-right: 5px; margin-right: -5px; }
     .upload-artwork-section { text-align: center; margin-bottom: 10px; }
     .upload-artwork-preview { width: 180px; height: 180px; background: #333; border-radius: 8px; margin: 0 auto 15px; object-fit: cover; cursor: pointer; border: 1px dashed var(--system-gray); }
     .form-group { display: flex; flex-direction: column; margin-bottom: 15px; }
     .form-group label { color: var(--system-gray); font-size: 14px; margin-bottom: 8px; text-transform: uppercase; }
-    .form-group input { background: var(--fill-tertiary); border: none; border-radius: 8px; padding: 12px; font-size: 17px; color: #fff; }
+    .form-group input, .form-group select { background: var(--fill-tertiary); border: none; border-radius: 8px; padding: 12px; font-size: 17px; color: #fff; -webkit-appearance: none; }
     #upload-file-button {
-      background: var(--fill-tertiary);
-      border: 1px solid var(--system-pink);
-      color: var(--system-pink);
-      cursor: pointer;
-      padding: 12px;
-      font-size: 17px;
-      border-radius: 8px;
+      background: var(--fill-tertiary); border: 1px solid var(--system-pink);
+      color: var(--system-pink); cursor: pointer; padding: 12px; font-size: 17px; border-radius: 8px;
     }
     #submit-upload-button { 
-        background: var(--system-pink);
-        cursor: pointer;
-        font-weight: 600;
-        padding: 12px;
-        font-size: 17px;
-        border-radius: 8px;
-        border: none;
-        color: #fff;
+        background: var(--system-pink); cursor: pointer; font-weight: 600; padding: 12px;
+        font-size: 17px; border-radius: 8px; border: none; color: #fff;
     }
 
     /* Utility */
@@ -245,6 +219,7 @@
                     <div class="form-group"><label for="song-title-input">TITLE</label><input type="text" id="song-title-input" required></div>
                     <div class="form-group"><label for="song-artist-input">ARTIST</label><input type="text" id="song-artist-input" required></div>
                     <div class="form-group"><label for="song-album-input">ALBUM</label><input type="text" id="song-album-input" required></div>
+                    <div class="form-group"><label for="playlist-select">PLAYLIST (OPTIONAL)</label><select id="playlist-select"><option value="">None</option></select></div>
                     <div class="form-group"><button type="button" id="upload-file-button" data-action="triggerSongUpload">Select Song File</button><span id="song-file-name" style="color: var(--system-gray); font-size: 14px; margin-top: 8px; text-align: center;">No file selected.</span><input type="file" id="music-file-input" class="hidden" accept=".mp3"></div>
                 </div>
                 <button type="button" id="submit-upload-button" data-action="submitUpload">Add to Library</button>
@@ -373,7 +348,7 @@
       
     const DB = {
         init: () => new Promise(resolve => {
-            const request = indexedDB.open("AppleMusicDB_v10_Final", 1);
+            const request = indexedDB.open("AppleMusicDB_v11_Definitive", 1);
             request.onupgradeneeded = e => {
                 const db = e.target.result;
                 if (!db.objectStoreNames.contains("songs")) db.createObjectStore("songs", { keyPath: "id", autoIncrement: true });
@@ -381,7 +356,8 @@
             };
             request.onsuccess = e => { app.db = e.target.result; resolve(); };
         }),
-        add: (store, item) => new Promise(res => app.db.transaction(store, 'readwrite').objectStore(store).add(item).onsuccess = res),
+        add: (store, item) => new Promise(res => app.db.transaction(store, 'readwrite').objectStore(store).add(item).onsuccess = e => res(e.target.result)),
+        put: (store, item) => new Promise(res => app.db.transaction(store, 'readwrite').objectStore(store).put(item).onsuccess = res),
         getAll: store => new Promise(res => app.db.transaction(store).objectStore(store).getAll().onsuccess = e => res(e.target.result)),
     };
       
@@ -447,7 +423,7 @@
             reader.readAsDataURL(app.uploadData.artworkFile);
         },
         async submit() {
-            const song = {
+            const songData = {
                 title: document.getElementById('song-title-input').value,
                 artist: document.getElementById('song-artist-input').value,
                 album: document.getElementById('song-album-input').value,
@@ -455,12 +431,22 @@
                 artwork: app.uploadData.artworkBase64 || 'https://via.placeholder.com/300?text=No+Art',
                 addedAt: Date.now(),
             };
-            if (!song.title || !song.artist || !song.album || !song.file) {
+            if (!songData.title || !songData.artist || !songData.album || !songData.file) {
                 alert("Please fill all fields and select a song file.");
                 return;
             }
             UI.showLoading(true);
-            await DB.add('songs', song);
+            const songId = await DB.add('songs', songData);
+            
+            const selectedPlaylistId = document.getElementById('playlist-select').value;
+            if (selectedPlaylistId) {
+                const playlist = app.library.playlists.find(p => p.id == selectedPlaylistId);
+                if(playlist) {
+                    playlist.songs.push(songId);
+                    await DB.put('playlists', playlist);
+                }
+            }
+
             await Library.loadAllData();
             UI.renderAll();
             UI.showLoading(false);
@@ -492,13 +478,18 @@
         }
         handleTouchEnd() {
             if (!this.touch.isDragging) return;
+            const target = this.touch.target;
+            const onDismiss = this.touch.onDismiss;
             let deltaY = this.touch.currentY - this.touch.startY;
-            this.touch.target.classList.remove('no-transition');
-
-            if (deltaY > 100) { this.touch.onDismiss(); } 
-            else { this.touch.target.style.transform = ''; }
             
-            this.touch.isDragging = false;
+            this.touch.isDragging = false; // Reset dragging state immediately
+            target.classList.remove('no-transition');
+
+            if (deltaY > 100) {
+                onDismiss();
+            }
+            // Reset transform regardless of dismiss, as hide/show functions handle it
+            target.style.transform = ''; 
         }
     }
 
@@ -573,6 +564,9 @@
     const UI = {
         showLoading: (show) => DOM.loadingOverlay.classList.toggle('active', show),
         showView(viewId) {
+            if (viewId === 'add') {
+                Upload.populatePlaylists();
+            }
             DOM.views.forEach(v => v.classList.toggle('active', v.id === `${viewId}-view`));
             document.querySelectorAll('.tab-item').forEach(t => t.classList.toggle('active', t.dataset.view === viewId));
             app.navStack = [{ type: 'main', id: viewId }];
@@ -735,7 +729,7 @@
             div.className = 'song-list-item';
             div.dataset.action = 'playSong';
             div.dataset.id = song.id;
-            div.innerHTML = `<img class="song-list-artwork" src="${song.artwork}"><div class="song-list-info-container"><div class="song-list-info"><span class="song-list-title">${song.title}<span class="explicit-tag hidden">E</span></span><span class="song-list-artist">${song.artist}</span></div><i class="fas fa-ellipsis-h song-menu-btn"></i></div>`;
+            div.innerHTML = `<img class="song-list-artwork" src="${song.artwork}"><div class="song-list-info-container"><div class="song-list-info"><span class="song-list-title">${song.title}</span><span class="song-list-artist">${song.artist}</span></div><i class="fas fa-ellipsis-h song-menu-btn"></i></div>`;
             return div;
         },
         handleSearch(e) {
@@ -755,6 +749,27 @@
             filtered.forEach(song => resultsContainer.appendChild(this.createSongListItem(song)));
         },
     };
+    
+    // Add populatePlaylists to UI module
+    UI.populatePlaylists = function() {
+        const select = document.getElementById('playlist-select');
+        select.innerHTML = '<option value="">None</option>';
+        app.library.playlists.forEach(p => {
+            const option = document.createElement('option');
+            option.value = p.id;
+            option.textContent = p.name;
+            select.appendChild(option);
+        });
+    }
+
+    // Modify showView to call populatePlaylists
+    const originalShowView = UI.showView;
+    UI.showView = function(viewId) {
+        if (viewId === 'add') {
+            this.populatePlaylists();
+        }
+        originalShowView.call(this, viewId);
+    }
     
     init();
 });
