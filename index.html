@@ -247,6 +247,70 @@
         color: var(--system-red);
         font-weight: 600;
     }
+    /* Styles for Multi-Song Upload */
+    .upload-song-list-container {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    .upload-song-item {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 10px;
+        background: var(--fill-tertiary);
+        border-radius: 8px;
+        position: relative;
+    }
+    .upload-song-item .modal-artwork-preview {
+        width: 60px;
+        height: 60px;
+        margin: 0;
+        flex-shrink: 0;
+    }
+    .upload-song-details {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 0; /* Prevents overflow issues */
+    }
+    .upload-song-details input {
+        padding: 8px 12px;
+        font-size: 16px;
+        width: 100%;
+        background-color: rgba(118, 118, 128, 0.34);
+        border: none;
+        border-radius: 4px;
+        color: #fff;
+    }
+    .upload-song-details .song-file-name-small {
+        font-size: 12px;
+        color: var(--system-gray);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .remove-song-btn {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: var(--system-gray);
+        color: var(--system-gray-6);
+        border: none;
+        font-size: 14px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        line-height: 1;
+        z-index: 5;
+    }
   </style>
 </head>
 <body>
@@ -288,12 +352,18 @@
         </div>
         <div class="main-content">
             <form class="modal-form-container" id="upload-form">
-                <div class="modal-artwork-section"><img id="upload-artwork-preview" class="modal-artwork-preview" src="https://via.placeholder.com/150?text=Artwork" data-action="triggerArtworkUpload" alt="Artwork Preview"><input type="file" id="artwork-input" class="hidden" accept="image/*"></div>
-                <div class="form-group"><label for="song-title-input">TITLE</label><input type="text" id="song-title-input" required></div>
-                <div class="form-group"><label for="song-artist-input">ARTIST</label><input type="text" id="song-artist-input" required></div>
-                <div class="form-group"><label for="song-album-input">ALBUM</label><input type="text" id="song-album-input" required></div>
-                <div class="form-group"><button type="button" class="secondary-btn" data-action="triggerSongUpload">Select Song File</button><span id="song-file-name" style="color: var(--system-gray); font-size: 14px; margin-top: 8px; text-align: center;">No file selected.</span><input type="file" id="music-file-input" class="hidden" accept=".mp3"></div>
-                <div class="form-group"><button type="button" class="secondary-btn" data-action="openPlaylistSelector">Add to Playlist (Optional)</button><span id="selected-playlist-name" style="color: var(--system-gray); font-size: 14px; margin-top: 8px; text-align: center;">No playlist selected.</span></div>
+                <div id="upload-song-list" class="upload-song-list-container">
+                    <!-- Song items will be injected here by JS -->
+                </div>
+                <div class="form-group" id="song-file-selector-group">
+                    <button type="button" class="secondary-btn" data-action="triggerSongUpload">Select Song File(s)</button>
+                    <span id="song-file-name" style="color: var(--system-gray); font-size: 14px; margin-top: 8px; text-align: center;"></span>
+                    <input type="file" id="music-file-input" class="hidden" accept=".mp3" multiple>
+                </div>
+                <div class="form-group">
+                    <button type="button" class="secondary-btn" data-action="openPlaylistSelector">Add to Playlist (Optional)</button>
+                    <span id="selected-playlist-name" style="color: var(--system-gray); font-size: 14px; margin-top: 8px; text-align: center;">No playlist selected.</span>
+                </div>
             </form>
         </div>
     </div>
@@ -383,7 +453,7 @@ document.addEventListener('DOMContentLoaded', () => {
         db: null,
         nowPlaying: { id: null, queue: [], currentIndex: -1, isPlaying: false, repeatMode: 'none' },
         library: { songs: [], playlists: [], artists: {}, albums: {} },
-        uploadData: { songFile: null, artworkBase64: null, editingId: null, selectedPlaylistId: null },
+        uploadData: { songsToUpload: [], editingId: null, selectedPlaylistId: null },
         playlistData: { artworkBase64: null },
     };
     const DOM = {
@@ -408,7 +478,6 @@ document.addEventListener('DOMContentLoaded', () => {
         DOM.audio.addEventListener('loadedmetadata', () => Player.updateProgress());
         DOM.audio.addEventListener('ended', () => Player.nextSong());
         DOM.audio.addEventListener('error', e => { if (e.target.error && e.target.error.code === 4) Player.nextSong(); });
-        document.getElementById('artwork-input').addEventListener('change', e => Upload.handleArtworkFileSelect(e));
         document.getElementById('music-file-input').addEventListener('change', e => Upload.handleSongFileSelect(e));
         document.getElementById('playlist-artwork-input').addEventListener('change', e => Playlist.handleArtworkFileSelect(e));
         document.getElementById('search-input').addEventListener('input', e => UI.handleSearch(e));
@@ -432,9 +501,19 @@ document.addEventListener('DOMContentLoaded', () => {
             'openPlaylistSelector': Upload.openPlaylistSelector,
             'closePlaylistSelector': Upload.closePlaylistSelector,
             'selectPlaylist': () => Upload.selectPlaylist(parseInt(target.dataset.id)),
-            'triggerArtworkUpload': () => document.getElementById('artwork-input').click(),
             'triggerSongUpload': () => document.getElementById('music-file-input').click(),
             'triggerPlaylistArtworkUpload': () => document.getElementById('playlist-artwork-input').click(),
+            'triggerSongArtworkUpload': () => {
+                const index = target.dataset.index;
+                document.querySelector(`.song-artwork-input[data-index='${index}']`).click();
+            },
+            'removeSongFromUpload': () => {
+                const index = parseInt(target.dataset.index, 10);
+                app.uploadData.songsToUpload.splice(index, 1);
+                Upload.renderSongUploadList();
+                const count = app.uploadData.songsToUpload.length;
+                document.getElementById('song-file-name').textContent = count > 0 ? `${count} file(s) selected.` : '';
+            },
             'submitUpload': Upload.submit,
             'submitCreatePlaylist': Playlist.submit,
             'showSubView': () => UI.showSubView(target.dataset.type, target.dataset.id),
@@ -522,61 +601,141 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     const Upload = {
-        openModal: () => { Upload.resetForm(); UI.showModal('upload-view'); },
+        openModal: () => { 
+            Upload.resetForm(); 
+            document.getElementById('song-file-selector-group').classList.remove('hidden');
+            UI.showModal('upload-view'); 
+        },
         closeModal: () => UI.hideModal('upload-view'),
         resetForm() {
             document.getElementById('upload-form').reset();
-            document.getElementById('upload-artwork-preview').src = 'https://via.placeholder.com/150?text=Artwork';
-            document.getElementById('song-file-name').textContent = 'No file selected.';
+            document.getElementById('upload-song-list').innerHTML = '';
+            document.getElementById('song-file-name').textContent = '';
             document.getElementById('selected-playlist-name').textContent = 'No playlist selected.';
-            app.uploadData = { songFile: null, artworkBase64: null, editingId: null, selectedPlaylistId: null };
+            app.uploadData = { songsToUpload: [], editingId: null, selectedPlaylistId: null };
             document.querySelector('#upload-view h1').textContent = "Add Music";
             document.querySelector('#upload-view [data-action="submitUpload"]').textContent = "Done";
         },
         editSong(id) {
             const songToEdit = app.library.songs.find(s => s.id === id);
             if (songToEdit) {
-                this.openModal(); app.uploadData.editingId = id; app.uploadData.artworkBase64 = songToEdit.artwork;
-                document.querySelector("#upload-view h1").textContent = "Edit Song"; document.querySelector('#upload-view [data-action="submitUpload"]').textContent = "Save";
-                document.getElementById("upload-artwork-preview").src = songToEdit.artwork; document.getElementById("song-title-input").value = songToEdit.title;
-                document.getElementById("song-artist-input").value = songToEdit.artist; document.getElementById("song-album-input").value = songToEdit.album;
-                document.getElementById("song-file-name").textContent = "Original file";
+                this.openModal();
+                app.uploadData.editingId = id;
+                app.uploadData.songsToUpload.push({
+                    file: null, 
+                    title: songToEdit.title,
+                    artist: songToEdit.artist,
+                    album: songToEdit.album,
+                    artworkBase64: songToEdit.artwork,
+                    originalFileName: "Original file"
+                });
+                this.renderSongUploadList();
+                document.getElementById('song-file-selector-group').classList.add('hidden');
+                document.querySelector("#upload-view h1").textContent = "Edit Song";
+                document.querySelector('#upload-view [data-action="submitUpload"]').textContent = "Save";
             }
         },
         handleSongFileSelect(e) {
-            app.uploadData.songFile = e.target.files[0];
-            if (app.uploadData.songFile) {
-                document.getElementById("song-file-name").textContent = app.uploadData.songFile.name;
-                jsmediatags.read(app.uploadData.songFile, {
+            const files = e.target.files;
+            if (!files.length) return;
+            document.getElementById('song-file-name').textContent = `${files.length} file(s) selected.`;
+            app.uploadData.songsToUpload = []; 
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const songData = {
+                    file: file, title: file.name.replace(/\.[^/.]+$/, ""), artist: 'Unknown Artist', album: 'Unknown Album',
+                    artworkBase64: 'https://via.placeholder.com/150?text=Artwork', originalFileName: file.name
+                };
+                app.uploadData.songsToUpload.push(songData);
+                jsmediatags.read(file, {
                     onSuccess: ({ tags }) => {
-                        if (tags.title && !document.getElementById("song-title-input").value) document.getElementById("song-title-input").value = tags.title;
-                        if (tags.artist && !document.getElementById("song-artist-input").value) document.getElementById("song-artist-input").value = tags.artist;
-                        if (tags.album && !document.getElementById("song-album-input").value) document.getElementById("song-album-input").value = tags.album;
-                        if (tags.picture && !app.uploadData.artworkBase64) {
-                            app.uploadData.artworkBase64 = `data:${tags.picture.format};base64,${btoa(String.fromCharCode.apply(null, tags.picture.data))}`;
-                            document.getElementById("upload-artwork-preview").src = app.uploadData.artworkBase64;
-                        }
-                    }
+                        if (tags.title) songData.title = tags.title;
+                        if (tags.artist) songData.artist = tags.artist;
+                        if (tags.album) songData.album = tags.album;
+                        if (tags.picture) songData.artworkBase64 = `data:${tags.picture.format};base64,${btoa(String.fromCharCode.apply(null, tags.picture.data))}`;
+                        this.renderSongUploadList();
+                    },
+                    onError: () => this.renderSongUploadList()
                 });
             }
+            this.renderSongUploadList();
         },
-        handleArtworkFileSelect(e) {
+        handleSongArtworkFileSelect(e) {
             const file = e.target.files[0];
-            if (file) { const reader = new FileReader(); reader.onload = e => { app.uploadData.artworkBase64 = e.target.result; document.getElementById("upload-artwork-preview").src = app.uploadData.artworkBase64; }; reader.readAsDataURL(file); }
+            const index = e.target.dataset.index;
+            if (file && index !== undefined) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    app.uploadData.songsToUpload[index].artworkBase64 = event.target.result;
+                    document.querySelector(`img[data-action='triggerSongArtworkUpload'][data-index='${index}']`).src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        },
+        renderSongUploadList() {
+            const container = document.getElementById('upload-song-list');
+            container.innerHTML = '';
+            app.uploadData.songsToUpload.forEach((song, index) => {
+                const item = document.createElement('div');
+                item.className = 'upload-song-item';
+                item.dataset.index = index;
+                item.innerHTML = `
+                    <div class="upload-song-artwork">
+                        <img src="${song.artworkBase64}" class="modal-artwork-preview" data-action="triggerSongArtworkUpload" data-index="${index}" alt="Artwork Preview">
+                        <input type="file" class="hidden song-artwork-input" accept="image/*" data-index="${index}">
+                    </div>
+                    <div class="upload-song-details">
+                        <input type="text" placeholder="Title" class="upload-song-title" value="${song.title.replace(/"/g, '"')}" required>
+                        <input type="text" placeholder="Artist" class="upload-song-artist" value="${song.artist.replace(/"/g, '"')}" required>
+                        <input type="text" placeholder="Album" class="upload-song-album" value="${song.album.replace(/"/g, '"')}" required>
+                        <span class="song-file-name-small">${song.originalFileName}</span>
+                    </div>
+                    <button type="button" class="remove-song-btn" data-action="removeSongFromUpload" data-index="${index}">×</button>`;
+                container.appendChild(item);
+            });
+            container.querySelectorAll('.song-artwork-input').forEach(input => {
+                input.addEventListener('change', (e) => this.handleSongArtworkFileSelect(e));
+            });
         },
         async submit() {
-            const title = document.getElementById("song-title-input").value, artist = document.getElementById("song-artist-input").value, album = document.getElementById("song-album-input").value;
-            if (!title || !artist || !album) { alert("Please fill all fields."); return; }
-            if (!app.uploadData.editingId && !app.uploadData.songFile) { alert("Please select a song file."); return; }
+            const songItems = document.querySelectorAll('.upload-song-item');
+            if (songItems.length === 0) { alert("Please select at least one song file."); return; }
+            let allFieldsValid = true;
+            songItems.forEach((item, index) => {
+                const title = item.querySelector('.upload-song-title').value, artist = item.querySelector('.upload-song-artist').value, album = item.querySelector('.upload-song-album').value;
+                if (!title || !artist || !album) allFieldsValid = false;
+                app.uploadData.songsToUpload[index].title = title; app.uploadData.songsToUpload[index].artist = artist; app.uploadData.songsToUpload[index].album = album;
+            });
+            if (!allFieldsValid) { alert("Please fill all title, artist, and album fields."); return; }
+            if (!app.uploadData.editingId && app.uploadData.songsToUpload.some(s => !s.file)) { alert("An error occurred. Please re-select your files."); return; }
             UI.showLoading(true); let success = false;
             try {
-                const existingSong = app.uploadData.editingId ? app.library.songs.find(s => s.id === app.uploadData.editingId) : {};
-                const songData = { ...existingSong, title, artist, album, artwork: app.uploadData.artworkBase64 || existingSong.artwork || "https://via.placeholder.com/300?text=No+Art", addedAt: existingSong.addedAt || Date.now(), isFavorite: existingSong.isFavorite || false };
-                if (app.uploadData.songFile) songData.file = app.uploadData.songFile;
-                const songId = app.uploadData.editingId ? await DB.put("songs", songData).then(() => app.uploadData.editingId) : await DB.add("songs", songData);
-                if (app.uploadData.selectedPlaylistId) { const playlist = await DB.get("playlists", app.uploadData.selectedPlaylistId); if (playlist && !playlist.songs.includes(songId)) { playlist.songs.push(songId); await DB.put("playlists", playlist); } }
+                if (app.uploadData.editingId) {
+                    const songToSave = app.uploadData.songsToUpload[0];
+                    const existingSong = await DB.get("songs", app.uploadData.editingId);
+                    const songData = { ...existingSong, id: app.uploadData.editingId, title: songToSave.title, artist: songToSave.artist, album: songToSave.album, artwork: songToSave.artworkBase64 };
+                    await DB.put("songs", songData);
+                } else {
+                    const newSongIds = [];
+                    for (const song of app.uploadData.songsToUpload) {
+                        const songData = { title: song.title, artist: song.artist, album: song.album, artwork: song.artworkBase64, file: song.file, addedAt: Date.now(), isFavorite: false };
+                        const songId = await DB.add("songs", songData);
+                        newSongIds.push(songId);
+                    }
+                    if (app.uploadData.selectedPlaylistId && newSongIds.length > 0) {
+                        const playlist = await DB.get("playlists", app.uploadData.selectedPlaylistId);
+                        if (playlist) { playlist.songs.push(...newSongIds); await DB.put("playlists", playlist); }
+                    }
+                }
                 await Library.loadAllData(); success = true;
-            } finally { UI.showLoading(false); if (success) { this.closeModal(); UI.renderLibraryView(); UI.showSubView('songs'); } }
+            } catch (err) { console.error("Error during upload/save:", err); alert("An error occurred while saving the music."); }
+            finally {
+                UI.showLoading(false);
+                if (success) {
+                    this.closeModal();
+                    UI.showView('home-view');
+                }
+            }
         },
         openPlaylistSelector() { UI.renderPlaylistSelector(); UI.showModal('playlist-selector-view'); },
         closePlaylistSelector() { UI.hideModal('playlist-selector-view'); },
@@ -597,7 +756,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const name = document.getElementById("playlist-name-input").value.trim(); if (!name) return alert("Please enter a playlist name.");
             UI.showLoading(true); let success = false;
             try { await DB.add("playlists", { name, songs: [], artwork: app.playlistData.artworkBase64, createdAt: Date.now() }); await Library.loadAllData(); success = true; }
-            finally { UI.showLoading(false); if (success) { this.closeModal(); UI.renderLibraryView(); UI.showSubView('playlists'); } }
+            finally { 
+                UI.showLoading(false); 
+                if (success) { 
+                    this.closeModal(); 
+                    UI.renderLibraryView(); 
+                    UI.showSubView('playlists'); 
+                } 
+            }
         },
         async rename(id) {
             const playlist = app.library.playlists.find(p => p.id === id); if (!playlist) return;
