@@ -2,7 +2,7 @@
   "name": "Offline MP3 Player",
   "short_name": "MP3 Player",
   "start_url": "/",
-  "display": "fullscreen",
+  "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#000000",
   "description": "Fully offline MP3 playlists",
