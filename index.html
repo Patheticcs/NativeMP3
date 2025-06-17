@@ -463,6 +463,7 @@ body {
   <div class="loading-overlay" id="loading-overlay"><div class="spinner"></div></div>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', () => {
 const app = {
     db: null,
     nowPlaying: { id: null, queue: [], currentIndex: -1, isPlaying: false, repeatMode: 'none' },
@@ -491,9 +492,9 @@ function init() {
 function setupEventListeners() {
     document.body.addEventListener('click', handleAction);
     window.addEventListener('popstate', handlePopState);
-    DOM.audio.addEventListener('timeupdate', Player.updateProgress);
-    DOM.audio.addEventListener('loadedmetadata', Player.updateProgress);
-    DOM.audio.addEventListener('ended', Player.nextSong);
+    DOM.audio.addEventListener('timeupdate', () => Player.updateProgress());
+    DOM.audio.addEventListener('loadedmetadata', () => Player.updateProgress());
+    DOM.audio.addEventListener('ended', () => Player.nextSong());
     DOM.audio.addEventListener('error', e => { 
         console.error("Audio Element Error:", e);
         if (e.target.error && e.target.error.code === 4) {
@@ -555,9 +556,9 @@ function handleAction(e) {
         'playAlbum': () => { if (Player.playAlbum(target.dataset.album)) UI.showView('player-view'); },
         'playPlaylist': () => { if (Player.playPlaylist(target.dataset.id)) UI.showView('player-view'); },
         'shuffle': () => { if (Player.shuffle(target.dataset.type, target.dataset.id)) UI.showView('player-view'); },
-        'togglePlay': Player.togglePlay,
-        'nextSong': Player.nextSong,
-        'prevSong': Player.prevSong,
+        'togglePlay': () => Player.togglePlay(),
+        'nextSong': () => Player.nextSong(),
+        'prevSong': () => Player.prevSong(),
         'showFullPlayer': () => {
             if (app.nowPlaying.id) {
                 UI.showView('player-view');
@@ -568,7 +569,7 @@ function handleAction(e) {
         'seek': Player.seek,
         'setVolume': Player.setVolume,
         'toggleFavorite': Player.toggleFavorite,
-        'toggleRepeat': Player.toggleRepeat,
+        'toggleRepeat': () => Player.toggleRepeat(),
         'editSong': () => Upload.editSong(parseInt(target.dataset.id)),
         'deleteSong': () => Library.deleteSong(parseInt(target.dataset.id)),
         'renamePlaylist': () => Playlist.rename(parseInt(target.dataset.id)),
@@ -1135,19 +1136,13 @@ const Player = {
 
     nextSong() {
         if (app.nowPlaying.queue.length === 0) {
-            this.stop();
             return;
         }
-
         let nextIndex = app.nowPlaying.currentIndex + 1;
-
-        if (nextIndex < app.nowPlaying.queue.length) {
-            this.playFromQueue(nextIndex);
-        } else if (app.nowPlaying.repeatMode === 'queue' || app.nowPlaying.repeatMode === 'single') {
-            this.playFromQueue(0);
-        } else {
-            this.stop();
+        if (nextIndex >= app.nowPlaying.queue.length) {
+            nextIndex = 0;
         }
+        this.playFromQueue(nextIndex);
     },
     
     prevSong() {
@@ -1178,7 +1173,7 @@ const Player = {
         const { currentTime, duration } = DOM.audio; 
         document.getElementById("progress-fill").style.width = `${(currentTime / duration) * 100}%`; 
         document.getElementById("current-time").textContent = this.formatTime(currentTime); 
-        document.getElementById("total-time").textContent = this.formatTime(duration - currentTime); 
+        document.getElementById("total-time").textContent = this.formatTime(duration); 
     },
     formatTime: s => { const rounded = Math.floor(s || 0); return `${Math.floor(rounded/60)}:${(rounded%60).toString().padStart(2,'0')}`; },
 
