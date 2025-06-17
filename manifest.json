@@ -1,5 +1,5 @@
 {
-  "name": "Offline MP3 Player",
+  "name": "NativeMP3",
   "short_name": "MP3 Player",
   "start_url": "/",
   "display": "standalone",
