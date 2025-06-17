@@ -3,12 +3,14 @@
   "short_name": "MP3 Player",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "background_color": "transparent",
+  "theme_color": "transparent",
   "description": "Fully offline MP3 playlists",
-  "icons": [{
-    "src": "/favicon.ico",
-    "sizes": "48x48",
-    "type": "image/x-icon"
-  }]
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
 }
