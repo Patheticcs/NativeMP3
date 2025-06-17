@@ -1,4 +1,4 @@
-const CACHE = 'v1';
+const CACHE = 'v2';
 const FILES = ['/', '/index.html', '/manifest.json', '/favicon.ico'];
 
 self.addEventListener('install', e => {
