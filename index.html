@@ -777,6 +777,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             UI.showLoading(true);
+            let success = false;
             try {
                 const existingSong = app.uploadData.editingId ? app.library.songs.find(s => s.id === app.uploadData.editingId) : {};
                 const songData = {
@@ -810,14 +811,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 await Library.loadAllData();
-                UI.renderAll();
-                this.closeModal();
-                UI.renderSubView('songs');
+                success = true;
             } catch (error) {
                 console.error("Failed to upload/edit song:", error);
                 alert("An error occurred. Please try again.");
             } finally {
                 UI.showLoading(false);
+                if (success) {
+                    this.closeModal();
+                    UI.renderSubView('songs');
+                }
             }
         },
         openPlaylistSelector() {
@@ -863,6 +866,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const name = document.getElementById("playlist-name-input").value.trim();
             if (!name) return alert("Please enter a playlist name.");
             UI.showLoading(true);
+            let success = false;
             try {
                 await DB.add("playlists", {
                     name,
@@ -871,13 +875,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     createdAt: Date.now()
                 });
                 await Library.loadAllData();
-                this.closeModal();
-                UI.renderSubView('playlists');
+                success = true;
             } catch (error) {
                 console.error("Failed to create playlist", error);
                 alert("An error occurred. Please try again.");
             } finally {
                 UI.showLoading(false);
+                if (success) {
+                    this.closeModal();
+                    UI.renderSubView('playlists');
+                }
             }
         },
         async rename(id) {
@@ -1092,7 +1099,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             let nextIndex = app.nowPlaying.currentIndex + 1;
             if (nextIndex >= app.nowPlaying.queue.length) {
-                nextIndex = 0; // Loop back to the beginning
+                nextIndex = 0;
             }
             this.playFromQueue(nextIndex);
         },
