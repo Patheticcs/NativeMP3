@@ -399,6 +399,15 @@
     }
     #sub-view .main-content {
         padding: 0 20px 130px 20px;
+    }
+    /* FIX: Add style for dynamic blank spacer */
+    #sub-view .main-content.has-spacer {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+    }
+    #sub-view .main-content.has-spacer::after {
+        content: '';
         flex-grow: 1;
     }
     #sub-view .main-content .grid {
@@ -1104,6 +1113,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const UI = {
         showLoading: (show) => DOM.loadingOverlay.classList.toggle('active', show),
         showView(viewId, fromPopState = false) {
+            // FIX: Always re-render the library view's content when it's shown.
+            // This prevents issues with stale DOM elements and unresponsive buttons
+            // by ensuring the UI is fresh every time the user returns to this tab.
+            if (viewId === 'library-view') {
+                this.renderLibraryView();
+            }
             if (!fromPopState) { let hash = viewId.replace('-view', ''); if (viewId === 'player-view') hash = 'playing'; if (window.location.hash !== '#' + hash) history.pushState({ viewId }, '', '#' + hash); }
             DOM.views.forEach(v => v.classList.remove('active'));
             document.getElementById(viewId)?.classList.add('active');
@@ -1120,6 +1135,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelector('#sub-view .sub-view-scrollable-header-content').scrollTop = 0;
         },
         showModal: (viewId) => { document.getElementById(viewId).classList.add('active'); },
+        // FIX: Correctly hide the modal by removing the 'active' class.
         hideModal: (viewId) => { document.getElementById(viewId).classList.remove('active'); },
         goBack: () => history.back(),
         hideFullPlayer: () => {
@@ -1172,21 +1188,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
             dynamicHeader.innerHTML = ''; mainActionsArea.innerHTML = ''; contentContainer.innerHTML = ''; topActionsContainer.innerHTML = '';
             contentContainer.dataset.type = type;
+            // FIX: Reset content container classlist for blank spacer logic.
+            contentContainer.className = 'main-content';
 
             const backTextMap = { playlistDetail: "Playlists", albumDetail: "Albums", default: "Library" };
             document.querySelector("#sub-view .back-btn span").textContent = backTextMap[type] || backTextMap.default;
 
             if (type === 'albumDetail' || type === 'playlistDetail') {
-                let data, title, subtitle, artwork, metaInfo = 'Alternative · 2025 · Lossless';
+                // FIX: Apply spacer class to enforce full-height layout for short lists.
+                contentContainer.classList.add('has-spacer');
+                let title, subtitle, artwork, metaInfo;
                 let songs = [];
+                
                 if (type === 'albumDetail') {
                     const album = app.library.albums[id];
                     if (album) {
-                        data = album;
                         title = id;
-                        subtitle = data.artist;
-                        artwork = data.artwork;
-                        songs = data.songs;
+                        subtitle = album.artist;
+                        artwork = album.artwork;
+                        songs = album.songs;
+                        metaInfo = `${songs.length} song${songs.length !== 1 ? 's' : ''}`;
                     }
                 } else { // playlistDetail
                     songs = Player.getPlaylistSongs(id);
@@ -1207,30 +1228,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const artworkHTML = artwork === 'FAVORITE'
                     ? `<div id="favorite-playlist-artwork" class="album-artwork-main"><i class="fas fa-star"></i></div>`
-                    : `<img src="${artwork}" class="album-artwork-main">`;
+                    : `<img src="${artwork || 'https://via.placeholder.com/240'}" class="album-artwork-main">`;
 
-                dynamicHeader.innerHTML = `
+                const albumHeaderHTML = `
                     <div class="album-header">
                         ${artworkHTML}
                         <h1 class="album-title-main">${title || ''}</h1>
                         <h2 class="album-artist-main">${subtitle || ''}</h2>
-                        <p class="album-meta">${metaInfo}</p>
+                        <p class="album-meta">${metaInfo || ''}</p>
                     </div>`;
 
+                let actionButtonsHTML = '';
                 if (songs.length > 0) {
                     const playAction = type === 'albumDetail' ? 'playAlbum' : 'playPlaylist';
                     const playId = type === 'albumDetail' ? id : id;
                     const shuffleId = type === 'albumDetail' ? id : id;
-
-                    mainActionsArea.innerHTML = `
-                        <button class="action-btn" data-action="${playAction}" data-${type === 'albumDetail' ? 'album' : 'id'}="${playId}"><i class="fas fa-play"></i>Play</button>
-                        <button class="action-btn" data-action="shuffle" data-type="${type === 'albumDetail' ? 'album' : 'playlist'}" data-id="${shuffleId}"><i class="fas fa-shuffle"></i>Shuffle</button>
+                    actionButtonsHTML = `
+                        <div class="action-buttons" style="padding: 10px 0 15px 0;">
+                            <button class="action-btn" data-action="${playAction}" data-${type === 'albumDetail' ? 'album' : 'id'}="${playId}"><i class="fas fa-play"></i>Play</button>
+                            <button class="action-btn" data-action="shuffle" data-type="${type === 'albumDetail' ? 'album' : 'playlist'}" data-id="${shuffleId}"><i class="fas fa-shuffle"></i>Shuffle</button>
+                        </div>
                     `;
                 }
+                
+                contentContainer.innerHTML = albumHeaderHTML + actionButtonsHTML;
                 this.renderNumberedSongList(contentContainer, songs);
 
             } else {
-                // Restore default header for other views
                 const titles = { playlists: "Playlists", artists: "Artists", albums: "Albums", songs: "Songs" };
                 dynamicHeader.innerHTML = `
                     <div class="header large-title" id="sub-view-large-title-area"><h1>${titles[type] || ''}</h1></div>
@@ -1245,7 +1269,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
         renderNumberedSongList(container, songs) {
-            if (songs.length === 0) { container.innerHTML = '<p class="empty-state">No songs found.</p>'; return; }
+            if (songs.length === 0) { container.innerHTML += '<p class="empty-state">No songs found.</p>'; return; }
             songs.forEach((song, index) => {
                 const item = document.createElement('div');
                 item.className = 'album-song-item';
