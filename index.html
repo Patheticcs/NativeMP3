@@ -6,7 +6,7 @@
   <title>Apple Music</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="transparent">
+  <meta name="theme-color" content="#000000">
   <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
@@ -23,10 +23,16 @@
       --safe-area-bottom: env(safe-area-inset-bottom, 0px);
     }
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    html, body { height: 100%; width: 100%; overflow: hidden; }
+    html, body { 
+      overflow: hidden; 
+      width: 100%; 
+    }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+      font-family: -apple-system, BlinkMacMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
       background: #000; color: #fff; display: flex; flex-direction: column; -webkit-font-smoothing: antialiased;
+      padding-top: var(--safe-area-top);
+      min-height: calc(100vh + var(--safe-area-top));
+      height: unset;
     }
     .app-container { flex: 1; display: flex; flex-direction: column; position: relative; overflow: hidden; }
     .view {
@@ -34,13 +40,13 @@
       opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; background: #000; z-index: 10;
     }
     .view.active { opacity: 1; visibility: visible; z-index: 20; }
-    .header { padding: var(--safe-area-top) 20px 10px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; }
+    .header { padding: 0 20px 10px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; }
     .header.large-title h1 { font-size: 34px; font-weight: 700; }
     .header-profile-icon {
         width: 32px; height: 32px; background: var(--fill-tertiary); color: var(--system-pink);
         border-radius: 50%; font-size: 16px; display: flex; align-items: center; justify-content: center;
     }
-    .header-with-back { padding: var(--safe-area-top) 10px 10px; }
+    .header-with-back { padding: 0 10px 10px; }
     .header-with-back .back-btn {
         font-size: 17px; color: var(--system-pink); background: none; border: none; cursor: pointer;
         display: flex; align-items: center; gap: 4px; padding: 8px;
@@ -166,7 +172,7 @@
       display: flex; flex-direction: column; justify-content: space-between;
       padding: 0 30px; flex-grow: 1;
     }
-    #player-view .header-with-back { background: transparent; border: none; position: relative; z-index: 1; }
+    #player-view .header-with-back { background: transparent; border: none; position: relative; z-index: 1; padding-top: var(--safe-area-top); }
     #player-view .player-header-title { font-size: 17px; font-weight: 600; opacity: 0.8; }
     .player-artwork-container {
       flex-grow: 1; display: flex; align-items: center; justify-content: center; padding: 10px 0;
@@ -249,7 +255,6 @@
         color: var(--system-red);
         font-weight: 600;
     }
-    /* Styles for Multi-Song Upload */
     .upload-song-list-container {
         display: flex;
         flex-direction: column;
@@ -276,7 +281,7 @@
         display: flex;
         flex-direction: column;
         gap: 8px;
-        min-width: 0; /* Prevents overflow issues */
+        min-width: 0;
     }
     .upload-song-details input {
         padding: 8px 12px;
@@ -355,7 +360,6 @@
         <div class="main-content">
             <form class="modal-form-container" id="upload-form">
                 <div id="upload-song-list" class="upload-song-list-container">
-                    <!-- Song items will be injected here by JS -->
                 </div>
                 <div class="form-group" id="song-file-selector-group">
                     <button type="button" class="secondary-btn" data-action="triggerSongUpload">Select Song File(s)</button>
@@ -472,6 +476,11 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
         setupEventListeners();
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(reg => console.log('Service Worker registered', reg))
+                .catch(err => console.error('Service Worker registration failed:', err));
+        }
     }
     function setupEventListeners() {
         document.body.addEventListener('click', handleAction);
@@ -896,7 +905,7 @@ document.addEventListener('DOMContentLoaded', () => {
             app.nowPlaying.queue = songsToShuffle.map(s => s.id); this.playFromQueue(0); return true;
         },
         getPlaylistSongs(id) { if (id === "favorites") return app.library.songs.filter(s => s.isFavorite); const playlist = app.library.playlists.find(p => p.id === parseInt(id)); return playlist ? app.library.songs.filter(s => playlist.songs.includes(s.id)) : []; },
-                updateMediaSession(song = app.library.songs.find(s => s.id === app.nowPlaying.id)) {
+        updateMediaSession(song = app.library.songs.find(s => s.id === app.nowPlaying.id)) {
             if ('mediaSession' in navigator) {
                 if (!song) { navigator.mediaSession.metadata = null; navigator.mediaSession.playbackState = 'none'; return; }
                 navigator.mediaSession.metadata = new MediaMetadata({ title: song.title, artist: song.artist, album: song.album, artwork: [{ src: song.artwork, sizes: '512x512', type: 'image/png' }] });
