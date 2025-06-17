@@ -676,6 +676,7 @@ document.addEventListener('DOMContentLoaded', () => {
             Upload.resetForm();
             // Show title field for editing, hide for batch upload initially
             document.getElementById('song-title-input').parentElement.style.display = 'none';
+            document.querySelector('[data-action="triggerSongUpload"]').parentElement.style.display = 'flex';
             UI.showModal('upload-view');
         },
         closeModal: () => UI.hideModal('upload-view'),
@@ -842,6 +843,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (app.uploadData.selectedPlaylistId && newSongIds.length > 0) {
                 const playlist = await DB.get("playlists", app.uploadData.selectedPlaylistId);
                 if (playlist) {
+                    // *** FIX: Ensure playlist.songs is an array before pushing to it ***
+                    if (!Array.isArray(playlist.songs)) {
+                        playlist.songs = [];
+                    }
                     playlist.songs.push(...newSongIds);
                     await DB.put("playlists", playlist);
                 }
@@ -893,7 +898,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 await DB.add("playlists", {
                     name,
-                    songs: [],
+                    songs: [], // Explicitly create the songs array
                     artwork: app.playlistData.artworkBase64,
                     createdAt: Date.now()
                 });
@@ -1494,7 +1499,6 @@ document.addEventListener('DOMContentLoaded', () => {
             fragment.appendChild(this.createPlaylistItem({
                 id: "favorites",
                 name: "Favorite Songs",
-                artwork: "FAVORITE",
                 songs: []
             }));
             app.library.playlists.forEach(p => fragment.appendChild(this.createPlaylistItem(p)));
@@ -1547,18 +1551,25 @@ document.addEventListener('DOMContentLoaded', () => {
             return el
         },
         createPlaylistItem(playlist) {
-            const songCount = playlist.id === "favorites" ? app.library.songs.filter(s => s.isFavorite).length : playlist.songs.length;
+            // *** FIX: Defensively calculate song count to prevent TypeError ***
+            const songCount = playlist.id === "favorites" ?
+                app.library.songs.filter(s => s.isFavorite).length :
+                (Array.isArray(playlist.songs) ? playlist.songs.length : 0);
+
+            const artworkHTML = playlist.id === "favorites" ?
+                '<div class="playlist-item-artwork" id="favorite-playlist-artwork"><i class="fas fa-star"></i></div>' :
+                `<div class="playlist-item-artwork" style="background-image:url(${playlist.artwork||'https://via.placeholder.com/150?text=Art'})"></div>`;
+
             const itemHTML = `
             <div class="playlist-item" data-action="showSubView" data-type="playlistDetail" data-id="${playlist.id}">
-                <div class="playlist-item-artwork" ${playlist.artwork==="FAVORITE"?'id="favorite-playlist-artwork"':`style="background-image:url(${playlist.artwork||'https://via.placeholder.com/150?text=Art'})"`}>
-                    ${playlist.artwork==="FAVORITE"?'<i class="fas fa-star"></i>':''}
-                </div>
+                ${artworkHTML}
                 <div class="playlist-info">
                     <div class="playlist-title">${playlist.name}</div>
                     <div class="playlist-subtitle">${songCount} song${songCount!==1?'s':''}</div>
                 </div>
                 <div class="list-arrow"><i class="fas fa-chevron-right"></i></div>
             </div>`;
+
             const wrapper = document.createElement("div");
             wrapper.className = "list-item-swipe-container";
             wrapper.innerHTML = `
