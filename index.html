@@ -164,7 +164,7 @@
       display: flex; flex-direction: column; justify-content: space-between;
       padding: 0 30px; flex-grow: 1;
     }
-    #player-view .header-with-back { background: transparent; border: none; }
+    #player-view .header-with-back { background: transparent; border: none; position: relative; z-index: 1; }
     #player-view .player-header-title { font-size: 17px; font-weight: 600; opacity: 0.8; }
     .player-artwork-container {
       flex-grow: 1; display: flex; align-items: center; justify-content: center; padding: 10px 0;
@@ -894,13 +894,13 @@ document.addEventListener('DOMContentLoaded', () => {
             app.nowPlaying.queue = songsToShuffle.map(s => s.id); this.playFromQueue(0); return true;
         },
         getPlaylistSongs(id) { if (id === "favorites") return app.library.songs.filter(s => s.isFavorite); const playlist = app.library.playlists.find(p => p.id === parseInt(id)); return playlist ? app.library.songs.filter(s => playlist.songs.includes(s.id)) : []; },
-        updateMediaSession(song = app.library.songs.find(s => s.id === app.nowPlaying.id)) {
+                updateMediaSession(song = app.library.songs.find(s => s.id === app.nowPlaying.id)) {
             if ('mediaSession' in navigator) {
                 if (!song) { navigator.mediaSession.metadata = null; navigator.mediaSession.playbackState = 'none'; return; }
                 navigator.mediaSession.metadata = new MediaMetadata({ title: song.title, artist: song.artist, album: song.album, artwork: [{ src: song.artwork, sizes: '512x512', type: 'image/png' }] });
                 navigator.mediaSession.playbackState = app.nowPlaying.isPlaying ? 'playing' : 'paused';
-                navigator.mediaSession.setActionHandler('play', Player.togglePlay); navigator.mediaSession.setActionHandler('pause', Player.togglePlay);
-                navigator.mediaSession.setActionHandler('previoustrack', Player.prevSong); navigator.mediaSession.setActionHandler('nexttrack', Player.nextSong);
+                navigator.mediaSession.setActionHandler('play', () => Player.togglePlay()); navigator.mediaSession.setActionHandler('pause', () => Player.togglePlay());
+                navigator.mediaSession.setActionHandler('previoustrack', () => Player.prevSong()); navigator.mediaSession.setActionHandler('nexttrack', () => Player.nextSong());
             }
         }
     };
