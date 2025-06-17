@@ -72,7 +72,7 @@
     .section-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 20px 15px; }
     .section-header h2 { font-size: 22px; font-weight: 700; }
     .action-buttons { display: flex; gap: 10px; padding: 10px 20px; }
-    .action-btn { flex: 1; background: var(--fill-tertiary); border: none; border-radius: 8px; color: var(--system-pink); padding: 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
+    .action-btn { flex: 1; background: var(--fill-tertiary); border: none; border-radius: 8px; color: var(--system-red); padding: 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
     .action-btn i { margin-right: 8px; }
     .list-item { display: flex; align-items: center; padding: 11px 20px; border-bottom: 1px solid var(--border-color); cursor: pointer; }
     .list-item:first-child { border-top: 1px solid var(--border-color); }
@@ -179,13 +179,19 @@
     .now-playing-controls { display: flex; align-items: center; gap: 20px; margin-right: 5px; }
     .now-playing-btn { background: none; border: none; color: #fff; font-size: 22px; cursor: pointer; }
     #player-view .main-content {
-      display: flex; flex-direction: column; justify-content: space-between;
-      padding: 0 30px; flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-evenly;
+      padding: 0 30px;
+      flex-grow: 1;
     }
     #player-view .header-with-back { background: transparent; border: none; position: relative; z-index: 1; padding-top: var(--safe-area-top); }
     #player-view .player-header-title { font-size: 17px; font-weight: 600; opacity: 0.8; }
     .player-artwork-container {
-      flex-grow: 1; display: flex; align-items: center; justify-content: center; padding: 10px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 0;
     }
     .player-artwork {
         width: 100%; aspect-ratio: 1/1; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); background-color: var(--system-gray-6);
@@ -398,6 +404,77 @@
     #sub-view .main-content .grid {
       padding: 0;
     }
+    .album-header {
+        padding: 10px 0;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    }
+    .album-artwork-main {
+        width: 60%;
+        max-width: 240px;
+        aspect-ratio: 1/1;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        background-color: var(--system-gray-6);
+        object-fit: cover;
+    }
+    .album-title-main {
+        font-size: 24px;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+    .album-artist-main {
+        font-size: 20px;
+        color: var(--system-red);
+        font-weight: 400;
+    }
+    .album-meta {
+        font-size: 14px;
+        color: var(--system-gray);
+    }
+    .album-song-item {
+        display: flex;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--border-color);
+        cursor: pointer;
+        gap: 15px;
+    }
+    .album-song-item:first-child {
+        border-top: 1px solid var(--border-color);
+    }
+    .album-song-item:last-child {
+        border-bottom: none;
+    }
+    .album-song-track-number {
+        color: var(--system-gray);
+        font-size: 17px;
+        width: 25px;
+        text-align: right;
+    }
+    .album-song-title {
+        flex: 1;
+        font-size: 17px;
+        display: flex;
+        align-items: center;
+    }
+    .album-song-title.explicit::after {
+        content: 'E';
+        font-size: 11px;
+        font-weight: 600;
+        background: rgba(255,255,255,0.3);
+        color: #fff;
+        padding: 1px 4px;
+        border-radius: 3px;
+        margin-left: 8px;
+        vertical-align: middle;
+    }
+    #sub-view .header-fixed-top-bar .back-btn i {
+        font-size: 22px;
+    }
   </style>
 </head>
 <body>
@@ -411,7 +488,7 @@
     </div>
     <div id="sub-view" class="view">
         <div class="header-fixed-top-bar">
-            <button class="back-btn" data-action="goBack"><i class="fas fa-chevron-left"></i> <span id="back-btn-text">Library</span></button>
+            <button class="back-btn" data-action="goBack"><i class="fas fa-arrow-left"></i> <span id="back-btn-text">Library</span></button>
             <div class="header-actions" id="sub-view-top-actions"></div>
         </div>
         <div class="sub-view-scrollable-header-content">
@@ -997,7 +1074,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!app.nowPlaying.id) return;
             const song = app.library.songs.find(s => s.id === app.nowPlaying.id);
             if (song) {
-                song.isFavorite = !Boolean(song.isFavorite);
+                song.isFavorite = !song.isFavorite;
                 await DB.put("songs", song);
                 UI.updateFavoriteButton(song.isFavorite);
             }
@@ -1088,67 +1165,104 @@ document.addEventListener('DOMContentLoaded', () => {
             else sectionHeader.classList.add("hidden");
         },
         renderSubView(type, id) {
-            const titles = { playlists: "Playlists", playlistDetail: "Playlist", artists: "Artists", albums: "Albums", albumDetail: "Album", songs: "Songs" };
-            const backTextMap = { playlistDetail: "Playlists", albumDetail: "Albums", default: "Library" };
-
-            document.querySelector("#sub-view .back-btn span").textContent = backTextMap[type] || backTextMap.default;
-
-            let currentTitleText = titles[type];
-            if (type === "playlistDetail") {
-                currentTitleText = id === "favorites" ? "Favorite Songs" : app.library.playlists.find(e => e.id === parseInt(id))?.name || "Playlist";
-            } else if (type === "albumDetail") {
-                currentTitleText = id || "Album";
-            }
-
-            document.getElementById("sub-view-large-title-area").innerHTML = `<h1>${currentTitleText}</h1>`;
-            document.getElementById("sub-view-search-bar-area").innerHTML = `<input type="text" class="search-input" data-type="${type}" ${id ? `data-id="${id}"` : ''} placeholder="Search"><i class="fas fa-microphone search-input-mic"></i>`;
-
+            const dynamicHeader = document.querySelector('.sub-view-dynamic-header-elements');
             const mainActionsArea = document.getElementById("sub-view-main-actions-area");
-            mainActionsArea.innerHTML = '';
             const contentContainer = document.getElementById("sub-view-content");
-            contentContainer.innerHTML = '';
+            const topActionsContainer = document.getElementById("sub-view-top-actions");
+
+            dynamicHeader.innerHTML = ''; mainActionsArea.innerHTML = ''; contentContainer.innerHTML = ''; topActionsContainer.innerHTML = '';
             contentContainer.dataset.type = type;
 
-            let playActionId = id, shuffleActionId = id, showActionButtons = false;
-            let currentAlbumName = type === 'albumDetail' ? id : null;
+            const backTextMap = { playlistDetail: "Playlists", albumDetail: "Albums", default: "Library" };
+            document.querySelector("#sub-view .back-btn span").textContent = backTextMap[type] || backTextMap.default;
 
-            if (type === 'songs') { if (app.library.songs.length > 0) { playActionId = app.library.songs[0]?.id; shuffleActionId = null; showActionButtons = true; } }
-            else if (type === 'playlistDetail') { if (Player.getPlaylistSongs(id).length > 0) showActionButtons = true; }
-            else if (type === 'albumDetail') { const album = app.library.albums[currentAlbumName]; if (album && album.songs.length > 0) showActionButtons = true; }
-
-
-            if (showActionButtons) {
-                let playBtnHTML = '', shuffleBtnHTML = '';
-                if (type === 'songs') {
-                    playBtnHTML = `<button class="action-btn" data-action="playSong" data-id="${playActionId}"><i class="fas fa-play"></i>Play</button>`;
-                    shuffleBtnHTML = `<button class="action-btn" data-action="shuffle" data-type="songs"><i class="fas fa-shuffle"></i>Shuffle</button>`;
-                } else if (type === 'playlistDetail') {
-                    playBtnHTML = `<button class="action-btn" data-action="playPlaylist" data-id="${playActionId}"><i class="fas fa-play"></i>Play</button>`;
-                    shuffleBtnHTML = `<button class="action-btn" data-action="shuffle" data-type="playlist" data-id="${shuffleActionId}"><i class="fas fa-shuffle"></i>Shuffle</button>`;
-                } else if (type === 'albumDetail') {
-                    playBtnHTML = `<button class="action-btn" data-action="playAlbum" data-album="${currentAlbumName}"><i class="fas fa-play"></i>Play</button>`;
-                    shuffleBtnHTML = `<button class="action-btn" data-action="shuffle" data-type="album" data-id="${currentAlbumName}"><i class="fas fa-shuffle"></i>Shuffle</button>`;
+            if (type === 'albumDetail' || type === 'playlistDetail') {
+                let data, title, subtitle, artwork, metaInfo = 'Alternative · 2025 · Lossless';
+                let songs = [];
+                if (type === 'albumDetail') {
+                    const album = app.library.albums[id];
+                    if (album) {
+                        data = album;
+                        title = id;
+                        subtitle = data.artist;
+                        artwork = data.artwork;
+                        songs = data.songs;
+                    }
+                } else { // playlistDetail
+                    songs = Player.getPlaylistSongs(id);
+                    if (id === 'favorites') {
+                        title = 'Favorite Songs';
+                        subtitle = 'Playlist';
+                        artwork = 'FAVORITE';
+                    } else {
+                        const playlist = app.library.playlists.find(p => p.id === parseInt(id));
+                        if(playlist) {
+                           title = playlist.name;
+                           subtitle = 'Playlist';
+                           artwork = playlist.artwork;
+                        }
+                    }
+                    metaInfo = `${songs.length} song${songs.length !== 1 ? 's' : ''}`;
                 }
-                mainActionsArea.innerHTML = playBtnHTML + shuffleBtnHTML;
-            }
 
-            const topActionsContainer = document.getElementById("sub-view-top-actions");
-            topActionsContainer.innerHTML = '';
-            if (type === "playlists") {
-                topActionsContainer.innerHTML = '<button class="icon-btn" data-action="openCreatePlaylistModal"><i class="fas fa-plus"></i></button>';
-            } else if (type === "albums") {
-                topActionsContainer.innerHTML = '';
-            } else if (type === "songs") {
-                 topActionsContainer.innerHTML = '';
-            }
+                const artworkHTML = artwork === 'FAVORITE'
+                    ? `<div id="favorite-playlist-artwork" class="album-artwork-main"><i class="fas fa-star"></i></div>`
+                    : `<img src="${artwork}" class="album-artwork-main">`;
 
-            const renderers = { playlists: this.renderPlaylistsView, playlistDetail: this.renderPlaylistDetailView, artists: this.renderArtistsView, albums: this.renderAlbumsView, albumDetail: this.renderAlbumDetailView, songs: this.renderSongsView };
-            if (renderers[type]) renderers[type].call(this, contentContainer, id);
+                dynamicHeader.innerHTML = `
+                    <div class="album-header">
+                        ${artworkHTML}
+                        <h1 class="album-title-main">${title || ''}</h1>
+                        <h2 class="album-artist-main">${subtitle || ''}</h2>
+                        <p class="album-meta">${metaInfo}</p>
+                    </div>`;
+
+                if (songs.length > 0) {
+                    const playAction = type === 'albumDetail' ? 'playAlbum' : 'playPlaylist';
+                    const playId = type === 'albumDetail' ? id : id;
+                    const shuffleId = type === 'albumDetail' ? id : id;
+
+                    mainActionsArea.innerHTML = `
+                        <button class="action-btn" data-action="${playAction}" data-${type === 'albumDetail' ? 'album' : 'id'}="${playId}"><i class="fas fa-play"></i>Play</button>
+                        <button class="action-btn" data-action="shuffle" data-type="${type === 'albumDetail' ? 'album' : 'playlist'}" data-id="${shuffleId}"><i class="fas fa-shuffle"></i>Shuffle</button>
+                    `;
+                }
+                this.renderNumberedSongList(contentContainer, songs);
+
+            } else {
+                // Restore default header for other views
+                const titles = { playlists: "Playlists", artists: "Artists", albums: "Albums", songs: "Songs" };
+                dynamicHeader.innerHTML = `
+                    <div class="header large-title" id="sub-view-large-title-area"><h1>${titles[type] || ''}</h1></div>
+                    <div class="search-bar" id="sub-view-search-bar-area"><input type="text" class="search-input" data-type="${type}" ${id ? `data-id="${id}"` : ''} placeholder="Search"><i class="fas fa-microphone search-input-mic"></i></div>
+                    <div class="action-buttons" id="sub-view-main-actions-area"></div>`;
+                
+                const renderers = { playlists: this.renderPlaylistsView, artists: this.renderArtistsView, albums: this.renderAlbumsView, songs: this.renderSongsView };
+                if (renderers[type]) renderers[type].call(this, contentContainer, id);
+                 if (type === "playlists") {
+                    topActionsContainer.innerHTML = '<button class="icon-btn" data-action="openCreatePlaylistModal"><i class="fas fa-plus"></i></button>';
+                }
+            }
+        },
+        renderNumberedSongList(container, songs) {
+            if (songs.length === 0) { container.innerHTML = '<p class="empty-state">No songs found.</p>'; return; }
+            songs.forEach((song, index) => {
+                const item = document.createElement('div');
+                item.className = 'album-song-item';
+                item.dataset.action = 'playSong';
+                item.dataset.id = song.id;
+                const isExplicit = song.title && song.title.includes('[E]');
+                const displayTitle = isExplicit ? song.title.replace(' [E]','') : song.title;
+                item.innerHTML = `
+                    <span class="album-song-track-number">${index + 1}</span>
+                    <span class="album-song-title ${isExplicit ? 'explicit' : ''}">${displayTitle}</span>`;
+                container.appendChild(item);
+            });
         },
         renderPlaylistSelector() { const list = document.getElementById("playlist-selector-list"); list.innerHTML = ""; app.library.playlists.forEach(playlist => { const item = document.createElement("div"); item.className = "list-item"; item.dataset.action = "selectPlaylist"; item.dataset.id = playlist.id; item.innerHTML = `<div class="list-icon"><i class="fas fa-list-ul"></i></div><div class="list-text">${playlist.name}</div>`; list.appendChild(item); }) },
         renderPlaylistsView(container) { const fragment = document.createDocumentFragment(); fragment.appendChild(this.createPlaylistItem({ id: "favorites", name: "Favorite Songs", artwork: "FAVORITE", songs: [] })); app.library.playlists.forEach(p => fragment.appendChild(this.createPlaylistItem(p))); container.appendChild(fragment) },
-        renderPlaylistDetailView(container, playlistId) { const songs = Player.getPlaylistSongs(playlistId); if (songs.length === 0) container.innerHTML += '<p class="empty-state">No songs in this playlist.</p>'; else songs.forEach(song => container.appendChild(this.createSongListItem(song))); },
-        renderAlbumDetailView(container, albumName) { const album = app.library.albums[albumName]; if (!album) return container.innerHTML += '<p class="empty-state">Album not found.</p>'; if (album.songs.length === 0) container.innerHTML += '<p class="empty-state">No songs in this album.</p>'; else album.songs.forEach(song => container.appendChild(this.createSongListItem(song))); },
+        renderPlaylistDetailView(container, playlistId) { this.renderNumberedSongList(container, Player.getPlaylistSongs(playlistId)); },
+        renderAlbumDetailView(container, albumName) { const album = app.library.albums[albumName]; this.renderNumberedSongList(container, album ? album.songs : []); },
         renderArtistsView(container) { const artists = Object.keys(app.library.artists).sort(); if (artists.length === 0) return container.innerHTML += '<p class="empty-state">No artists found.</p>'; artists.forEach(artistName => container.appendChild(this.createArtistListItem(artistName, app.library.artists[artistName][0].artwork))) },
         renderAlbumsView(container) {
             const albums = Object.keys(app.library.albums).sort();
@@ -1224,7 +1338,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const contentContainer = document.getElementById('sub-view-content');
             if (!contentContainer) return;
 
-            const items = contentContainer.querySelectorAll(".list-item, .list-item-swipe-container, .grid-item");
+            const items = contentContainer.querySelectorAll(".list-item, .list-item-swipe-container, .grid-item, .album-song-item");
             items.forEach(item => {
                 const text = item.textContent.toLowerCase();
                 item.style.display = text.includes(query) ? "" : "none";
