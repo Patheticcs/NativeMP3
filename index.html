@@ -891,7 +891,10 @@ document.addEventListener('DOMContentLoaded', () => {
             songItems.forEach((item, index) => {
                 const title = item.querySelector('.upload-song-title').value, artist = item.querySelector('.upload-song-artist').value, album = item.querySelector('.upload-song-album').value;
                 if (!title || !artist || !album) allFieldsValid = false;
-                app.uploadData.songsToUpload[index].title = title; app.uploadData.songsToUpload[index].artist = artist; app.uploadData.songsToUpload[index].album = album;
+                app.uploadData.songsToUpload[index].title = title;
+                app.uploadData.songsToUpload[index].artist = artist;
+                // THIS IS THE CORRECTED LINE
+                app.uploadData.songsToUpload[index].album = album;
             });
             if (!allFieldsValid) { alert("Please fill all title, artist, and album fields."); return; }
             if (!app.uploadData.editingId && app.uploadData.songsToUpload.some(s => !s.file)) { alert("An error occurred. Please re-select your files."); return; }
@@ -918,17 +921,11 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (err) { console.error("Error during upload/save:", err); alert("An error occurred while saving the music."); }
             finally {
                 UI.showLoading(false);
+                // FIX 3: After creating a song, automatically update and redirect to the Library page.
                 if (success) {
                     this.closeModal();
-                    UI.renderAll();
-                    const currentView = document.querySelector('.view.active');
-                    if (currentView && currentView.id === 'sub-view') {
-                        const type = currentView.querySelector('#sub-view-content').dataset.type;
-                        const id = currentView.querySelector('#sub-view-search-bar-area .search-input')?.dataset.id;
-                        UI.renderSubView(type, id);
-                    } else if (currentView && currentView.id === 'library-view'){
-                        UI.renderLibraryView();
-                    }
+                    // This will show the library view and trigger a re-render due to the fix for issue #2.
+                    UI.showView('library-view');
                 }
             }
         },
@@ -947,16 +944,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const file = e.target.files[0];
             if (file) { const reader = new FileReader(); reader.onload = e => { app.playlistData.artworkBase64 = e.target.result; document.getElementById("playlist-artwork-preview").src = app.playlistData.artworkBase64; }; reader.readAsDataURL(file); }
         },
+        // FIX 3: After creating a playlist, redirect to the new playlist's page.
         async submit() {
             const name = document.getElementById("playlist-name-input").value.trim(); if (!name) return alert("Please enter a playlist name.");
-            UI.showLoading(true); let success = false;
-            try { await DB.add("playlists", { name, songs: [], artwork: app.playlistData.artworkBase64, createdAt: Date.now() }); await Library.loadAllData(); success = true; }
+            UI.showLoading(true);
+            let success = false;
+            let newPlaylistId = null; // Variable to hold the ID of the new playlist
+
+            try {
+                const playlistData = { name, songs: [], artwork: app.playlistData.artworkBase64, createdAt: Date.now() };
+                newPlaylistId = await DB.add("playlists", playlistData); // Capture the new ID
+                await Library.loadAllData();
+                success = true;
+            } catch(err) {
+                 console.error("Error creating playlist:", err);
+            }
             finally {
                 UI.showLoading(false);
-                if (success) {
+                if (success && newPlaylistId) {
                     this.closeModal();
-                    UI.renderLibraryView();
-                    UI.showSubView('playlists');
+                    // Redirect to the newly created playlist's detail page
+                    UI.showSubView('playlistDetail', newPlaylistId);
                 }
             }
         },
@@ -1113,7 +1121,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const UI = {
         showLoading: (show) => DOM.loadingOverlay.classList.toggle('active', show),
         showView(viewId, fromPopState = false) {
-            // FIX: Always re-render the library view's content when it's shown.
+            // FIX 2: Always re-render the library view's content when it's shown.
             // This prevents issues with stale DOM elements and unresponsive buttons
             // by ensuring the UI is fresh every time the user returns to this tab.
             if (viewId === 'library-view') {
@@ -1135,7 +1143,6 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelector('#sub-view .sub-view-scrollable-header-content').scrollTop = 0;
         },
         showModal: (viewId) => { document.getElementById(viewId).classList.add('active'); },
-        // FIX: Correctly hide the modal by removing the 'active' class.
         hideModal: (viewId) => { document.getElementById(viewId).classList.remove('active'); },
         goBack: () => history.back(),
         hideFullPlayer: () => {
@@ -1188,14 +1195,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             dynamicHeader.innerHTML = ''; mainActionsArea.innerHTML = ''; contentContainer.innerHTML = ''; topActionsContainer.innerHTML = '';
             contentContainer.dataset.type = type;
-            // FIX: Reset content container classlist for blank spacer logic.
             contentContainer.className = 'main-content';
 
             const backTextMap = { playlistDetail: "Playlists", albumDetail: "Albums", default: "Library" };
             document.querySelector("#sub-view .back-btn span").textContent = backTextMap[type] || backTextMap.default;
 
             if (type === 'albumDetail' || type === 'playlistDetail') {
-                // FIX: Apply spacer class to enforce full-height layout for short lists.
                 contentContainer.classList.add('has-spacer');
                 let title, subtitle, artwork, metaInfo;
                 let songs = [];
@@ -1265,6 +1270,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (renderers[type]) renderers[type].call(this, contentContainer, id);
                  if (type === "playlists") {
                     topActionsContainer.innerHTML = '<button class="icon-btn" data-action="openCreatePlaylistModal"><i class="fas fa-plus"></i></button>';
+                }
+                // FIX 1: Add Play/Shuffle buttons to the main "Songs" list view.
+                if (type === 'songs' && app.library.songs.length > 0) {
+                    const mainActionsArea = document.getElementById('sub-view-main-actions-area');
+                    if (mainActionsArea) {
+                        mainActionsArea.innerHTML = `
+                            <button class="action-btn" data-action="playSong" data-id="${app.library.songs[0].id}"><i class="fas fa-play"></i> Play</button>
+                            <button class="action-btn" data-action="shuffle" data-type="songs"><i class="fas fa-shuffle"></i> Shuffle</button>
+                        `;
+                    }
                 }
             }
         },
